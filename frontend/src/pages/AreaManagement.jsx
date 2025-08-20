@@ -6,10 +6,14 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Edit, Trash2, Building2, Loader2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Building2, Loader2, Settings, Eye } from 'lucide-react'
 import { areaService } from '../services/api'
+import { useNotifications } from '../hooks/useNotifications'
+import { ConfirmDialog } from '../components/ui/confirm-dialog'
+import { toast } from 'sonner'
 
 export function AreaManagement() {
+  const { showSuccess, showError, showInfo, showLoading, updateToast, showTopLeft, showBottomRight } = useNotifications()
   const [areas, setAreas] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingArea, setEditingArea] = useState(null)
@@ -19,23 +23,40 @@ export function AreaManagement() {
     name: '',
     description: ''
   })
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    areaId: null,
+    areaName: ''
+  })
 
   // Carregar áreas da API
   useEffect(() => {
     loadAreas()
   }, [])
 
-  const loadAreas = async () => {
+  const loadAreas = async (showNotification = false) => {
     try {
       setLoading(true)
+      let loadingToast = null
+      
+      if (showNotification) {
+        loadingToast = showLoading('Carregando áreas...')
+      }
+      
       const areasData = await areaService.getAll()
       setAreas(areasData)
+      
+      if (showNotification && loadingToast) {
+        updateToast(loadingToast, `${areasData.length} áreas carregadas com sucesso!`, 'success')
+      }
     } catch (error) {
       console.error('Erro ao carregar áreas:', error)
+      showError('Erro ao carregar áreas. Verificando dados locais...')
       // Em caso de erro, tenta carregar do localStorage como fallback
       const savedAreas = localStorage.getItem('process-mapper-areas')
       if (savedAreas) {
         setAreas(JSON.parse(savedAreas))
+        showInfo('Carregando dados salvos localmente')
       }
     } finally {
       setLoading(false)
@@ -53,16 +74,36 @@ export function AreaManagement() {
         setAreas(areas.map(area => 
           area.id === editingArea.id ? updatedArea : area
         ))
+        
+        // Notificação com ícone customizado
+        toast.success(`Área "${formData.name}" atualizada!`, {
+          description: 'As alterações foram salvas com sucesso.',
+          icon: '✏️',
+          duration: 4000
+        })
       } else {
         // Criar nova área
         const newArea = await areaService.create(formData)
         setAreas([...areas, newArea])
+        
+        // Notificação com ícone customizado
+        toast.success(`Área "${formData.name}" criada!`, {
+          description: 'Nova área adicionada ao sistema.',
+          icon: '✨',
+          duration: 4000
+        })
       }
       
       resetForm()
     } catch (error) {
       console.error('Erro ao salvar área:', error)
-      alert('Erro ao salvar área. Tente novamente.')
+      
+      // Notificação de erro com ícone
+      toast.error('Erro ao salvar área', {
+        description: 'Verifique se todos os campos estão preenchidos corretamente.',
+        icon: '⚠️',
+        duration: 6000
+      })
     } finally {
       setSubmitting(false)
     }
@@ -83,16 +124,90 @@ export function AreaManagement() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (areaId) => {
-    if (confirm('Tem certeza que deseja excluir esta área? Esta ação também removerá todos os processos associados.')) {
-      try {
-        await areaService.delete(areaId)
-        setAreas(areas.filter(area => area.id !== areaId))
-      } catch (error) {
-        console.error('Erro ao deletar área:', error)
-        alert('Erro ao deletar área. Tente novamente.')
-      }
+  const handleDeleteClick = (areaId) => {
+    const areaToDelete = areas.find(area => area.id === areaId)
+    setDeleteDialog({
+      isOpen: true,
+      areaId,
+      areaName: areaToDelete?.name || ''
+    })
+  }
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await areaService.delete(deleteDialog.areaId)
+      const deletedArea = areas.find(area => area.id === deleteDialog.areaId)
+      setAreas(areas.filter(area => area.id !== deleteDialog.areaId))
+      
+      // Notificação com ação de desfazer
+      toast.success(`Área "${deleteDialog.areaName}" excluída com sucesso!`, {
+        action: {
+          label: 'Desfazer',
+          onClick: () => {
+            // Simula desfazer a exclusão
+            setAreas(prev => [...prev, deletedArea])
+            showInfo(`Área "${deleteDialog.areaName}" restaurada!`)
+          }
+        }
+      })
+    } catch (error) {
+      console.error('Erro ao deletar área:', error)
+      showError('Erro ao deletar área. Tente novamente.')
+    } finally {
+      setDeleteDialog({ isOpen: false, areaId: null, areaName: '' })
     }
+  }
+
+  const handleBatchOperation = async () => {
+    const toastId = toast.loading('Iniciando operação em lote...', {
+      description: '0%'
+    })
+    
+    try {
+      // Simula uma operação em lote com progresso
+      for (let i = 0; i <= 100; i += 10) {
+        await new Promise(resolve => setTimeout(resolve, 200)) // Simula delay
+        toast.loading('Processando áreas...', {
+          id: toastId,
+          description: `${i}%`
+        })
+      }
+      
+      toast.success('Operação em lote concluída!', {
+        id: toastId,
+        description: `${areas.length} áreas processadas com sucesso.`,
+        icon: '✅'
+      })
+    } catch (error) {
+      toast.error('Erro na operação em lote', {
+        id: toastId,
+        description: 'Tente novamente mais tarde.',
+        icon: '❌'
+      })
+    }
+  }
+
+  const handlePositionDemo = () => {
+    // Demonstra notificações em diferentes posições
+    showTopLeft('Notificação no canto superior esquerdo', 'info')
+    
+    setTimeout(() => {
+      showBottomRight('Notificação no canto inferior direito', 'success')
+    }, 500)
+    
+    setTimeout(() => {
+      toast.warning('Notificação no canto superior direito', {
+        position: 'top-right',
+        icon: '⚠️'
+      })
+    }, 1000)
+    
+    setTimeout(() => {
+      toast.error('Notificação no canto inferior esquerdo', {
+        position: 'bottom-left',
+        icon: '❌'
+      })
+    }, 1500)
   }
 
   if (loading) {
@@ -114,6 +229,35 @@ export function AreaManagement() {
           <p className="text-muted-foreground">
             Cadastre e organize as diferentes áreas da sua empresa
           </p>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="outline"
+            onClick={() => loadAreas(true)}
+            disabled={loading}
+          >
+            <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            Recarregar
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handleBatchOperation}
+            disabled={loading || areas.length === 0}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Operação em Lote
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handlePositionDemo}
+            disabled={loading}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            Demo Posições
+          </Button>
         </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -236,7 +380,7 @@ export function AreaManagement() {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleDelete(area.id)}
+                      onClick={() => handleDeleteClick(area.id)}
                       disabled={submitting}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -248,6 +392,17 @@ export function AreaManagement() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, areaId: null, areaName: '' })}
+        onConfirm={handleDeleteConfirm}
+        title="Confirmar Exclusão"
+        description={`Tem certeza que deseja excluir a área "${deleteDialog.areaName}"? Esta ação também removerá todos os processos associados e não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   )
 }

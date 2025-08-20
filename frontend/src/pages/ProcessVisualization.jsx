@@ -19,8 +19,10 @@ import {
   Loader2
 } from 'lucide-react'
 import { areaService, processService } from '../services/api'
+import { useNotifications } from '../hooks/useNotifications'
 
 export function ProcessVisualization() {
+  const { showError, showInfo } = useNotifications()
   const [areas, setAreas] = useState([])
   const [processes, setProcesses] = useState([])
   const [selectedArea, setSelectedArea] = useState('all')
@@ -44,6 +46,7 @@ export function ProcessVisualization() {
       setProcesses(processesData)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
+      showError('Erro ao carregar dados. Verificando dados locais...')
       // Em caso de erro, tenta carregar do localStorage como fallback
       const savedAreas = localStorage.getItem('process-mapper-areas')
       const savedProcesses = localStorage.getItem('process-mapper-processes')
@@ -53,6 +56,7 @@ export function ProcessVisualization() {
       }
       if (savedProcesses) {
         setProcesses(JSON.parse(savedProcesses))
+        showInfo('Carregando dados salvos localmente')
       }
     } finally {
       setLoading(false)

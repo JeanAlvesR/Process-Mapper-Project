@@ -4,6 +4,7 @@ import { Home } from '@/pages/Home'
 import { AreaManagement } from '@/pages/AreaManagement'
 import { ProcessManagement } from '@/pages/ProcessManagement'
 import { ProcessVisualization } from '@/pages/ProcessVisualization'
+import { Toaster } from '@/components/ui/sonner'
 import './App.css'
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
             <Route path="/visualization" element={<ProcessVisualization />} />
           </Routes>
         </main>
+        <Toaster />
       </div>
     </Router>
   )

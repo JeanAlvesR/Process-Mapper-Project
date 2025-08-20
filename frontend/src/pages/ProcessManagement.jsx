@@ -10,8 +10,11 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Loader2 } from 'lucide-react'
 import { areaService, processService } from '../services/api'
+import { useNotifications } from '../hooks/useNotifications'
+import { ConfirmDialog } from '../components/ui/confirm-dialog'
 
 export function ProcessManagement() {
+  const { showSuccess, showError, showInfo } = useNotifications()
   const [areas, setAreas] = useState([])
   const [processes, setProcesses] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
@@ -28,6 +31,11 @@ export function ProcessManagement() {
     responsible: '',
     documentation: '',
     type: 'manual' // manual ou systemic
+  })
+  const [deleteDialog, setDeleteDialog] = useState({
+    isOpen: false,
+    processId: null,
+    processName: ''
   })
 
   // Carregar dados da API
@@ -46,6 +54,7 @@ export function ProcessManagement() {
       setProcesses(processesData)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
+      showError('Erro ao carregar dados. Verificando dados locais...')
       // Em caso de erro, tenta carregar do localStorage como fallback
       const savedAreas = localStorage.getItem('process-mapper-areas')
       const savedProcesses = localStorage.getItem('process-mapper-processes')
@@ -55,6 +64,7 @@ export function ProcessManagement() {
       }
       if (savedProcesses) {
         setProcesses(JSON.parse(savedProcesses))
+        showInfo('Carregando dados salvos localmente')
       }
     } finally {
       setLoading(false)
@@ -72,17 +82,19 @@ export function ProcessManagement() {
         setProcesses(processes.map(process => 
           process.id === editingProcess.id ? updatedProcess : process
         ))
+        showSuccess(`Processo "${formData.name}" atualizado com sucesso!`)
       } else {
         // Criar novo processo
         const newProcess = await processService.create(formData)
         setProcesses([...processes, newProcess])
+        showSuccess(`Processo "${formData.name}" criado com sucesso!`)
       }
       
       resetForm()
       setIsDialogOpen(false)
     } catch (error) {
       console.error('Erro ao salvar processo:', error)
-      alert('Erro ao salvar processo. Verifique se todos os campos obrigatórios estão preenchidos.')
+      showError('Erro ao salvar processo. Verifique se todos os campos obrigatórios estão preenchidos corretamente.')
     } finally {
       setSubmitting(false)
     }
@@ -103,21 +115,31 @@ export function ProcessManagement() {
     setIsDialogOpen(true)
   }
 
-  const handleDelete = async (processId) => {
-    if (confirm('Tem certeza que deseja excluir este processo? Todos os subprocessos também serão excluídos.')) {
-      try {
-        await processService.delete(processId)
-        // Remove o processo e seus filhos da lista local
-        const removeProcessAndChildren = (id) => {
-          const children = processes.filter(p => p.parentId === id)
-          children.forEach(child => removeProcessAndChildren(child.id))
-          setProcesses(prev => prev.filter(p => p.id !== id))
-        }
-        removeProcessAndChildren(processId)
-      } catch (error) {
-        console.error('Erro ao deletar processo:', error)
-        alert('Erro ao deletar processo. Tente novamente.')
+  const handleDeleteClick = (processId) => {
+    const processToDelete = processes.find(process => process.id === processId)
+    setDeleteDialog({
+      isOpen: true,
+      processId,
+      processName: processToDelete?.name || ''
+    })
+  }
+
+  const handleDeleteConfirm = async () => {
+    try {
+      await processService.delete(deleteDialog.processId)
+      // Remove o processo e seus filhos da lista local
+      const removeProcessAndChildren = (id) => {
+        const children = processes.filter(p => p.parentId === id)
+        children.forEach(child => removeProcessAndChildren(child.id))
+        setProcesses(prev => prev.filter(p => p.id !== id))
       }
+      removeProcessAndChildren(deleteDialog.processId)
+      showSuccess(`Processo "${deleteDialog.processName}" excluído com sucesso!`)
+    } catch (error) {
+      console.error('Erro ao deletar processo:', error)
+      showError('Erro ao deletar processo. Tente novamente.')
+    } finally {
+      setDeleteDialog({ isOpen: false, processId: null, processName: '' })
     }
   }
 
@@ -512,7 +534,7 @@ export function ProcessManagement() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => handleDelete(process.id)}
+                            onClick={() => handleDeleteClick(process.id)}
                             disabled={submitting}
                           >
                             <Trash2 className="h-4 w-4" />
@@ -568,6 +590,17 @@ export function ProcessManagement() {
           )}
         </>
       )}
+
+      <ConfirmDialog
+        isOpen={deleteDialog.isOpen}
+        onClose={() => setDeleteDialog({ isOpen: false, processId: null, processName: '' })}
+        onConfirm={handleDeleteConfirm}
+        title="Confirmar Exclusão"
+        description={`Tem certeza que deseja excluir o processo "${deleteDialog.processName}"? Todos os subprocessos também serão excluídos e esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+      />
     </div>
   )
 }
