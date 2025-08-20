@@ -79,10 +79,7 @@ export class AreaService implements IAreaService {
       throw new Error('Area not found');
     }
 
-    if (area.processes && area.processes.length > 0) {
-      throw new Error('Cannot delete area with existing processes');
-    }
-
+    // Exclusão em cascata: FK de Process.area está com onDelete: 'CASCADE'
     const deleted = await this.areaRepository.delete(id);
     if (!deleted) {
       throw new Error('Failed to delete area');

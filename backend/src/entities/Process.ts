@@ -36,11 +36,11 @@ export class Process {
   @UpdateDateColumn()
   updatedAt: Date;
 
-  @ManyToOne(() => Area, area => area.processes)
+  @ManyToOne(() => Area, area => area.processes, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'areaId' })
   area: Area;
 
-  @ManyToOne(() => Process, process => process.children)
+  @ManyToOne(() => Process, process => process.children, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'parentId' })
   parent: Process;
 

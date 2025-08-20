@@ -221,7 +221,15 @@ export function ProcessManagement() {
       loadProcesses()
     } catch (error) {
       console.error('Erro ao deletar processo:', error)
-      showError('Erro ao deletar processo. Tente novamente.')
+      if (error?.status === 409) {
+        const dependents = error?.data?.dependents
+        showError(dependents !== undefined 
+          ? `Não é possível excluir. Existem ${dependents} subprocesso(s) dependentes.`
+          : 'Não é possível excluir. O processo possui subprocessos dependentes.'
+        )
+      } else {
+        showError('Erro ao deletar processo. Tente novamente.')
+      }
     } finally {
       setDeleteDialog({ isOpen: false, processId: null, processName: '' })
     }

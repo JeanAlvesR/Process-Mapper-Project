@@ -164,8 +164,13 @@ export class ProcessController {
       if (error instanceof Error) {
         if (error.message === 'Process not found') {
           res.status(404).json({ message: error.message });
-        } else if (error.message === 'Cannot delete process with existing children') {
-          res.status(400).json({ message: error.message });
+        } else if (error.message.startsWith('Cannot delete process with existing children')) {
+          const parts = error.message.split(':');
+          const count = parts.length > 1 ? parseInt(parts[1].trim()) : undefined;
+          res.status(409).json({ 
+            message: 'Processo possui subprocessos dependentes e não pode ser excluído.', 
+            dependents: count ?? undefined 
+          });
         } else if (error.message === 'Failed to delete process') {
           res.status(500).json({ message: error.message });
         } else {

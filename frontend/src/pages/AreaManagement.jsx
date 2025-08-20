@@ -192,23 +192,24 @@ export function AreaManagement() {
       const deletedArea = areas.find(area => area.id === deleteDialog.areaId)
       setAreas(areas.filter(area => area.id !== deleteDialog.areaId))
       
-      // Notificação com ação de desfazer
-      toast.success(`Área "${deleteDialog.areaName}" excluída com sucesso!`, {
-        action: {
-          label: 'Desfazer',
-          onClick: () => {
-            // Simula desfazer a exclusão
-            setAreas(prev => [...prev, deletedArea])
-            showInfo(`Área "${deleteDialog.areaName}" restaurada!`)
-          }
-        }
-      })
+      // Notificação simples sem ação de restaurar
+      toast.success(`Área "${deleteDialog.areaName}" excluída com sucesso!`)
       
       // Recarregar dados para atualizar paginação
       loadAreas()
     } catch (error) {
       console.error('Erro ao deletar área:', error)
-      showError('Erro ao deletar área. Tente novamente.')
+      if (error?.status === 409) {
+        const dependents = error?.data?.dependents
+        toast.error('Não é possível excluir a área', {
+          description: dependents !== undefined 
+            ? `Existem ${dependents} processo(s) dependentes.`
+            : 'A área possui processos dependentes.',
+          icon: '⚠️'
+        })
+      } else {
+        showError('Erro ao deletar área. Tente novamente.')
+      }
     } finally {
       setDeleteDialog({ isOpen: false, areaId: null, areaName: '' })
     }

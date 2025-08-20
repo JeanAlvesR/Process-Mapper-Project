@@ -15,8 +15,19 @@ const apiRequest = async (endpoint, options = {}) => {
     const response = await fetch(url, config);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+      let errorPayload = null;
+      let errorText = '';
+      try {
+        errorPayload = await response.clone().json();
+      } catch (_) {
+        try { errorText = await response.text(); } catch (_) { /* noop */ }
+      }
+      const message = errorPayload?.message || errorText || `HTTP error ${response.status}`;
+      const err = new Error(`HTTP error! status: ${response.status}, message: ${message}`);
+      // anexa info estruturada
+      err.status = response.status;
+      err.data = errorPayload || null;
+      throw err;
     }
     
     // Se a resposta for 204 (No Content), não tenta fazer parse do JSON

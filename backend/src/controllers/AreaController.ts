@@ -119,8 +119,14 @@ export class AreaController {
       if (error instanceof Error) {
         if (error.message === 'Area not found') {
           res.status(404).json({ message: error.message });
-        } else if (error.message === 'Cannot delete area with existing processes') {
-          res.status(400).json({ message: error.message });
+        } else if (error.message.startsWith('Cannot delete area with existing processes')) {
+          // extrai contagem se presente
+          const parts = error.message.split(':');
+          const count = parts.length > 1 ? parseInt(parts[1].trim()) : undefined;
+          res.status(409).json({ 
+            message: 'Área possui processos dependentes e não pode ser excluída.', 
+            dependents: count ?? undefined 
+          });
         } else if (error.message === 'Failed to delete area') {
           res.status(500).json({ message: error.message });
         } else {

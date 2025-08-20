@@ -142,12 +142,7 @@ export class ProcessService implements IProcessService {
       throw new Error('Process not found');
     }
 
-    // Check if process has children
-    const childrenCount = await this.processRepository.countChildren(id);
-    if (childrenCount > 0) {
-      throw new Error('Cannot delete process with existing children');
-    }
-
+    // Exclusão em cascata: repository já remove filhos recursivamente; e FK está com CASCADE
     const deleted = await this.processRepository.delete(id);
     if (!deleted) {
       throw new Error('Failed to delete process');
