@@ -57,4 +57,23 @@ export class ProcessRepository {
       await this.repository.delete(child.id);
     }
   }
+
+  async countByAreaId(areaId: string): Promise<number> {
+    return await this.repository.count({
+      where: { areaId }
+    });
+  }
+
+  async countChildren(parentId: string): Promise<number> {
+    return await this.repository.count({
+      where: { parentId }
+    });
+  }
+
+  async findChildren(parentId: string): Promise<Process[]> {
+    return await this.repository.find({
+      where: { parentId },
+      relations: ['area', 'parent']
+    });
+  }
 } 

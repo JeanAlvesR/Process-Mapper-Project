@@ -36,4 +36,10 @@ export class AreaRepository {
     const result = await this.repository.delete(id);
     return result.affected ? result.affected > 0 : false;
   }
+
+  async findByName(name: string): Promise<Area | null> {
+    return await this.repository.findOne({
+      where: { name }
+    });
+  }
 } 

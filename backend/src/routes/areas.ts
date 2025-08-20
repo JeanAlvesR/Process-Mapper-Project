@@ -1,76 +1,26 @@
 import { Router } from 'express';
-import { AreaRepository } from '../repositories/AreaRepository';
+import { AreaController } from '../controllers/AreaController';
 
 const router = Router();
-
-const areaRepository = new AreaRepository();
+const areaController = new AreaController();
 
 // Create Area
-router.post('/', async (req, res) => {
-  try {
-    const { name, description } = req.body;
-    if (!name) {
-      return res.status(400).json({ message: 'Name is required' });
-    }
-    const newArea = await areaRepository.create(name, description);
-    res.status(201).json(newArea);
-  } catch (error) {
-    res.status(500).json({ message: 'Error creating area', error });
-  }
-});
+router.post('/', (req, res) => areaController.createArea(req, res));
 
 // Get All Areas
-router.get('/', async (req, res) => {
-  try {
-    const areas = await areaRepository.findAll();
-    res.status(200).json(areas);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching areas', error });
-  }
-});
+router.get('/', (req, res) => areaController.getAllAreas(req, res));
 
 // Get Area by ID
-router.get('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const area = await areaRepository.findById(id);
-    if (!area) {
-      return res.status(404).json({ message: 'Area not found' });
-    }
-    res.status(200).json(area);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching area', error });
-  }
-});
+router.get('/:id', (req, res) => areaController.getAreaById(req, res));
+
+// Get Area with Processes
+router.get('/:id/processes', (req, res) => areaController.getAreaWithProcesses(req, res));
 
 // Update Area
-router.put('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    const updatedArea = await areaRepository.update(id, updates);
-    if (!updatedArea) {
-      return res.status(404).json({ message: 'Area not found' });
-    }
-    res.status(200).json(updatedArea);
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating area', error });
-  }
-});
+router.put('/:id', (req, res) => areaController.updateArea(req, res));
 
 // Delete Area
-router.delete('/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const deleted = await areaRepository.delete(id);
-    if (!deleted) {
-      return res.status(404).json({ message: 'Area not found' });
-    }
-    res.status(204).send(); // No Content
-  } catch (error) {
-    res.status(500).json({ message: 'Error deleting area', error });
-  }
-});
+router.delete('/:id', (req, res) => areaController.deleteArea(req, res));
 
 export default router;
 
