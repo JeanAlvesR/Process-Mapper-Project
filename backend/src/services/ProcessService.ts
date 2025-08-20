@@ -1,201 +1,139 @@
-import { ProcessRepository } from '../repositories/ProcessRepository';
-import { AreaRepository } from '../repositories/AreaRepository';
-import { Process } from '../entities/Process';
-import { 
-  CreateProcessDto, 
-  UpdateProcessDto, 
-  ProcessResponseDto, 
-  ProcessWithDetailsDto 
-} from '../dtos/ProcessDto';
-import { IProcessService } from '../interfaces/IProcessService';
 import { IProcessRepository } from '../interfaces/IProcessRepository';
 import { IAreaRepository } from '../interfaces/IAreaRepository';
+import { CreateProcessDto, UpdateProcessDto } from '../dtos/ProcessDto';
+import { ProcessPaginationQueryDto, PaginatedResponseDto } from '../dtos/PaginationDto';
+import { Process } from '../entities/Process';
+import { IProcessService } from '../interfaces/IProcessService';
 
 export class ProcessService implements IProcessService {
-  private processRepository: IProcessRepository;
-  private areaRepository: IAreaRepository;
-
   constructor(
-    processRepository?: IProcessRepository,
-    areaRepository?: IAreaRepository
-  ) {
-    this.processRepository = processRepository || new ProcessRepository();
-    this.areaRepository = areaRepository || new AreaRepository();
-  }
+    private processRepository: IProcessRepository,
+    private areaRepository: IAreaRepository
+  ) {}
 
-  private mapToProcessResponseDto(process: Process, childrenCount?: number): ProcessResponseDto {
-    return {
-      id: process.id,
-      name: process.name,
-      description: process.description,
-      areaId: process.areaId,
-      parentId: process.parentId,
-      tools: process.tools,
-      responsible: process.responsible,
-      documentation: process.documentation,
-      type: process.type,
-      createdAt: process.createdAt,
-      updatedAt: process.updatedAt,
-      area: process.area ? {
-        id: process.area.id,
-        name: process.area.name
-      } : undefined,
-      parent: process.parent ? {
-        id: process.parent.id,
-        name: process.parent.name
-      } : undefined,
-      childrenCount
-    };
-  }
-
-  private mapToProcessWithDetailsDto(process: Process, children: Process[]): ProcessWithDetailsDto {
-    const childrenDtos: ProcessResponseDto[] = children.map(child => ({
-      id: child.id,
-      name: child.name,
-      description: child.description,
-      areaId: child.areaId,
-      parentId: child.parentId,
-      tools: child.tools,
-      responsible: child.responsible,
-      documentation: child.documentation,
-      type: child.type,
-      createdAt: child.createdAt,
-      updatedAt: child.updatedAt
-    }));
-
-    return {
-      ...this.mapToProcessResponseDto(process, children.length),
-      area: process.area ? {
-        id: process.area.id,
-        name: process.area.name,
-        description: process.area.description
-      } : {
-        id: process.areaId,
-        name: '',
-        description: ''
-      },
-      parent: process.parent ? {
-        id: process.parent.id,
-        name: process.parent.name,
-        description: process.parent.description
-      } : undefined,
-      children: childrenDtos
-    };
-  }
-
-  async createProcess(createProcessDto: CreateProcessDto): Promise<ProcessResponseDto> {
+  async createProcess(createProcessDto: CreateProcessDto): Promise<Process> {
     const { name, description, areaId, parentId, tools, responsible, documentation, type } = createProcessDto;
-    
-    if (!name || !areaId || !type) {
-      throw new Error('Name, areaId, and type are required');
+
+    if (!name || name.trim() === '') {
+      throw new Error('Name is required');
     }
 
-    // Validate that the area exists
+    if (!areaId) {
+      throw new Error('Area ID is required');
+    }
+
+    // Verify area exists
     const area = await this.areaRepository.findById(areaId);
     if (!area) {
       throw new Error('Area not found');
     }
 
-    // Validate that the parent process exists (if provided)
+    // Verify parent process exists if provided
     if (parentId) {
       const parentProcess = await this.processRepository.findById(parentId);
       if (!parentProcess) {
         throw new Error('Parent process not found');
       }
-      // Ensure parent process is in the same area
+
+      // Verify parent process is in the same area
       if (parentProcess.areaId !== areaId) {
         throw new Error('Parent process must be in the same area');
       }
     }
 
-    const process = await this.processRepository.create({
-      name,
-      description,
+    return await this.processRepository.create({
+      name: name.trim(),
+      description: description?.trim(),
       areaId,
       parentId: parentId || undefined,
-      tools,
-      responsible,
-      documentation,
-      type
+      tools: tools?.trim(),
+      responsible: responsible?.trim(),
+      documentation: documentation?.trim(),
+      type: type || 'manual'
     });
-
-    return this.mapToProcessResponseDto(process);
   }
 
-  async getAllProcesses(areaId?: string): Promise<ProcessResponseDto[]> {
-    let processes;
-    
+  async getAllProcesses(areaId?: string): Promise<Process[]> {
     if (areaId) {
-      processes = await this.processRepository.findByAreaId(areaId);
-    } else {
-      processes = await this.processRepository.findAll();
+      return await this.processRepository.findByAreaId(areaId);
     }
-
-    // Get children count for each process
-    const processesWithCount = await Promise.all(
-      processes.map(async (process) => {
-        const childrenCount = await this.processRepository.countChildren(process.id);
-        return this.mapToProcessResponseDto(process, childrenCount);
-      })
-    );
-
-    return processesWithCount;
+    return await this.processRepository.findAll();
   }
 
-  async getProcessById(id: string): Promise<ProcessResponseDto> {
+  async getProcessesWithPagination(query: ProcessPaginationQueryDto): Promise<PaginatedResponseDto<Process>> {
+    return await this.processRepository.findWithPagination(query);
+  }
+
+  async getProcessesByAreaWithPagination(areaId: string, page: number = 1, limit: number = 10): Promise<PaginatedResponseDto<Process>> {
+    return await this.processRepository.findByAreaIdWithPagination(areaId, page, limit);
+  }
+
+  async getProcessesHierarchical(query: ProcessPaginationQueryDto): Promise<PaginatedResponseDto<Process>> {
+    return await this.processRepository.findHierarchicalWithPagination(query);
+  }
+
+  async getProcessById(id: string): Promise<Process> {
     const process = await this.processRepository.findById(id);
     if (!process) {
       throw new Error('Process not found');
     }
-
-    const childrenCount = await this.processRepository.countChildren(id);
-    return this.mapToProcessResponseDto(process, childrenCount);
+    return process;
   }
 
-  async getProcessWithDetails(id: string): Promise<ProcessWithDetailsDto> {
+  async getProcessWithDetails(id: string): Promise<Process> {
     const process = await this.processRepository.findById(id);
     if (!process) {
       throw new Error('Process not found');
     }
-
-    const children = await this.processRepository.findChildren(id);
-    return this.mapToProcessWithDetailsDto(process, children);
+    return process;
   }
 
-  async updateProcess(id: string, updateProcessDto: UpdateProcessDto): Promise<ProcessResponseDto> {
-    const process = await this.processRepository.findById(id);
-    if (!process) {
+  async updateProcess(id: string, updateProcessDto: UpdateProcessDto): Promise<Process> {
+    const { name, description, areaId, parentId, tools, responsible, documentation, type } = updateProcessDto;
+
+    const existingProcess = await this.processRepository.findById(id);
+    if (!existingProcess) {
       throw new Error('Process not found');
     }
 
-    // If updating areaId, validate that the area exists
-    if (updateProcessDto.areaId) {
-      const area = await this.areaRepository.findById(updateProcessDto.areaId);
+    // Verify area exists if provided
+    if (areaId) {
+      const area = await this.areaRepository.findById(areaId);
       if (!area) {
         throw new Error('Area not found');
       }
     }
 
-    // If updating parentId, validate that the parent process exists
-    if (updateProcessDto.parentId) {
-      const parentProcess = await this.processRepository.findById(updateProcessDto.parentId);
+    // Verify parent process exists if provided
+    if (parentId) {
+      const parentProcess = await this.processRepository.findById(parentId);
       if (!parentProcess) {
         throw new Error('Parent process not found');
       }
-      // Ensure parent process is in the same area
-      const targetAreaId = updateProcessDto.areaId || process.areaId;
+
+      // Verify parent process is in the same area
+      const targetAreaId = areaId || existingProcess.areaId;
       if (parentProcess.areaId !== targetAreaId) {
         throw new Error('Parent process must be in the same area');
       }
     }
 
-    const updatedProcess = await this.processRepository.update(id, updateProcessDto);
+    const updatedProcess = await this.processRepository.update(id, {
+      name: name?.trim(),
+      description: description?.trim(),
+      areaId,
+      parentId: parentId || undefined,
+      tools: tools?.trim(),
+      responsible: responsible?.trim(),
+      documentation: documentation?.trim(),
+      type
+    });
+
     if (!updatedProcess) {
       throw new Error('Failed to update process');
     }
 
-    const childrenCount = await this.processRepository.countChildren(id);
-    return this.mapToProcessResponseDto(updatedProcess, childrenCount);
+    return updatedProcess;
   }
 
   async deleteProcess(id: string): Promise<void> {
@@ -214,5 +152,13 @@ export class ProcessService implements IProcessService {
     if (!deleted) {
       throw new Error('Failed to delete process');
     }
+  }
+
+  async getProcessesCount(): Promise<number> {
+    return await this.processRepository.countTotal();
+  }
+
+  async getProcessesCountByArea(areaId: string): Promise<number> {
+    return await this.processRepository.countByAreaId(areaId);
   }
 }

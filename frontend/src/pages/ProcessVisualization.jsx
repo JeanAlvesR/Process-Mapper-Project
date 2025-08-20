@@ -4,7 +4,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { 
   Building2, 
   GitBranch, 
@@ -20,46 +19,86 @@ import {
 } from 'lucide-react'
 import { areaService, processService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
+import { Pagination } from '@/components/ui/pagination'
 
 export function ProcessVisualization() {
   const { showError, showInfo } = useNotifications()
   const [areas, setAreas] = useState([])
-  const [processes, setProcesses] = useState([])
   const [selectedArea, setSelectedArea] = useState('all')
+
+  // Raízes paginadas
+  const [rootProcesses, setRootProcesses] = useState([])
+  const [rootLoading, setRootLoading] = useState(true)
+  const [rootPage, setRootPage] = useState(1)
+  const [rootLimit, setRootLimit] = useState(10)
+  const [rootMeta, setRootMeta] = useState({ page: 1, limit: 10, totalItems: 0, totalPages: 1 })
+
+  // Cache de filhos por nó: { [parentId]: { items, meta, loading } }
+  const [childrenCache, setChildrenCache] = useState({})
+
   const [expandedNodes, setExpandedNodes] = useState(new Set())
   const [expandAll, setExpandAll] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [totalCount, setTotalCount] = useState(0)
 
-  // Carregar dados da API
+  // Carregar áreas na montagem
   useEffect(() => {
-    loadData()
+    loadAreas()
   }, [])
 
-  const loadData = async () => {
+  // Carregar raízes e contagem ao mudar filtro/página
+  useEffect(() => {
+    loadRootProcesses()
+    loadTotalCount()
+  }, [selectedArea, rootPage, rootLimit])
+
+  const loadAreas = async () => {
     try {
-      setLoading(true)
-      const [areasData, processesData] = await Promise.all([
-        areaService.getAll(),
-        processService.getAll()
-      ])
+      const areasData = await areaService.getAll()
       setAreas(areasData)
-      setProcesses(processesData)
     } catch (error) {
-      console.error('Erro ao carregar dados:', error)
-      showError('Erro ao carregar dados. Verificando dados locais...')
-      // Em caso de erro, tenta carregar do localStorage como fallback
+      console.error('Erro ao carregar áreas:', error)
+      showError('Erro ao carregar áreas. Verificando dados locais...')
       const savedAreas = localStorage.getItem('process-mapper-areas')
-      const savedProcesses = localStorage.getItem('process-mapper-processes')
-      
       if (savedAreas) {
         setAreas(JSON.parse(savedAreas))
       }
-      if (savedProcesses) {
-        setProcesses(JSON.parse(savedProcesses))
-        showInfo('Carregando dados salvos localmente')
+    }
+  }
+
+  const loadRootProcesses = async () => {
+    try {
+      setRootLoading(true)
+      const params = {
+        page: rootPage,
+        limit: rootLimit,
+        sortBy: 'name',
+        sortOrder: 'ASC',
+        parentId: 'null',
       }
+      if (selectedArea !== 'all') params.areaId = selectedArea
+
+      const res = await processService.getPaginated(params)
+      setRootProcesses(res.data || [])
+      setRootMeta(res.meta || { page: rootPage, limit: rootLimit, totalItems: 0, totalPages: 1 })
+    } catch (error) {
+      console.error('Erro ao carregar processos raiz:', error)
+      showError('Erro ao carregar processos')
     } finally {
-      setLoading(false)
+      setRootLoading(false)
+    }
+  }
+
+  const loadTotalCount = async () => {
+    try {
+      if (selectedArea === 'all') {
+        const res = await processService.getCount()
+        setTotalCount(res?.count ?? 0)
+      } else {
+        const res = await processService.getCountByArea(selectedArea)
+        setTotalCount(res?.count ?? 0)
+      }
+    } catch (e) {
+      setTotalCount(0)
     }
   }
 
@@ -68,58 +107,83 @@ export function ProcessVisualization() {
     return area ? area.name : 'Área não encontrada'
   }
 
-  const getProcessesByArea = () => {
-    let filtered = processes
-    
-    if (selectedArea !== 'all') {
-      filtered = filtered.filter(p => p.areaId === selectedArea)
-    }
-    
-    return filtered
-  }
-
-  const getChildProcesses = (parentId) => {
-    return getProcessesByArea().filter(p => p.parentId === parentId)
-  }
-
-  const getRootProcesses = () => {
-    return getProcessesByArea().filter(p => !p.parentId)
-  }
-
-  const toggleExpanded = (processId) => {
+  const toggleExpanded = async (processId) => {
     const newExpanded = new Set(expandedNodes)
-    if (newExpanded.has(processId)) {
-      newExpanded.delete(processId)
-    } else {
-      newExpanded.add(processId)
-    }
+    const willExpand = !newExpanded.has(processId)
+    if (willExpand) newExpanded.add(processId); else newExpanded.delete(processId)
     setExpandedNodes(newExpanded)
+
+    // Carregar filhos sob demanda quando expandir
+    if (willExpand) {
+      if (!childrenCache[processId] || !childrenCache[processId].items) {
+        await loadChildren(processId, 1)
+      }
+    }
   }
 
-  const toggleExpandAll = () => {
+  const loadChildren = async (parentId, page = 1, limit = 10) => {
+    setChildrenCache(prev => ({
+      ...prev,
+      [parentId]: { ...(prev[parentId] || {}), loading: true }
+    }))
+    try {
+      const params = {
+        page,
+        limit,
+        sortBy: 'name',
+        sortOrder: 'ASC',
+        parentId,
+      }
+      // Opcionalmente restringe por área selecionada
+      if (selectedArea !== 'all') params.areaId = selectedArea
+
+      const res = await processService.getPaginated(params)
+
+      setChildrenCache(prev => ({
+        ...prev,
+        [parentId]: {
+          items: res.data || [],
+          meta: res.meta || { page, limit, totalItems: 0, totalPages: 1 },
+          loading: false,
+        }
+      }))
+    } catch (error) {
+      console.error('Erro ao carregar filhos:', error)
+      setChildrenCache(prev => ({
+        ...prev,
+        [parentId]: { items: [], meta: { page, limit, totalItems: 0, totalPages: 1 }, loading: false }
+      }))
+    }
+  }
+
+  const toggleExpandAll = async () => {
     if (expandAll) {
       setExpandedNodes(new Set())
-    } else {
-      const allProcessIds = new Set(getProcessesByArea().map(p => p.id))
-      setExpandedNodes(allProcessIds)
+      setExpandAll(false)
+      return
     }
-    setExpandAll(!expandAll)
-  }
-
-  const getProcessStats = () => {
-    const filtered = getProcessesByArea()
-    const manual = filtered.filter(p => p.type === 'manual').length
-    const systemic = filtered.filter(p => p.type === 'systemic').length
-    const total = filtered.length
-    
-    return { manual, systemic, total }
+    // Expandir todos os nós visíveis (somente raízes) e carregar seus filhos
+    const expanded = new Set(rootProcesses.map(p => p.id))
+    setExpandedNodes(expanded)
+    setExpandAll(true)
+    // Carregar filhos para cada raiz
+    await Promise.all(rootProcesses.map(p => (
+      !childrenCache[p.id]?.items ? loadChildren(p.id, 1) : Promise.resolve()
+    )))
   }
 
   const ProcessNode = ({ process, level = 0 }) => {
-    const children = getChildProcesses(process.id)
-    const hasChildren = children.length > 0
+    const cache = childrenCache[process.id] || {}
     const isExpanded = expandedNodes.has(process.id)
     const marginLeft = level * 20
+
+    const children = cache.items || []
+    const childMeta = cache.meta || { page: 1, limit: 10, totalItems: 0, totalPages: 1 }
+    const childLoading = !!cache.loading
+
+    const handleChildPageChange = (page) => {
+      loadChildren(process.id, page, childMeta.limit)
+    }
 
     return (
       <div style={{ marginLeft: `${marginLeft}px` }}>
@@ -127,22 +191,18 @@ export function ProcessVisualization() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2 flex-1">
-                {hasChildren ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => toggleExpanded(process.id)}
-                    className="p-1 h-6 w-6"
-                  >
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </Button>
-                ) : (
-                  <div className="w-6" />
-                )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => toggleExpanded(process.id)}
+                  className="p-1 h-6 w-6"
+                >
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  )}
+                </Button>
                 
                 {process.type === 'systemic' ? (
                   <Settings className="h-5 w-5 text-blue-600" />
@@ -170,59 +230,41 @@ export function ProcessVisualization() {
             )}
           </CardHeader>
           
-          <CardContent className="pt-0">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-              {process.tools && (
-                <div className="flex items-start space-x-2">
-                  <Settings className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Ferramentas</p>
-                    <p className="text-muted-foreground">{process.tools}</p>
-                  </div>
+          {isExpanded && (
+            <CardContent className="pt-0">
+              {childLoading ? (
+                <div className="flex items-center py-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando subprocessos...
                 </div>
+              ) : (
+                <>
+                  {children.length === 0 ? (
+                    <div className="py-2 text-sm text-muted-foreground">Sem subprocessos</div>
+                  ) : (
+                    <div className="ml-4 border-l-2 border-muted pl-4">
+                      {children.map((child) => (
+                        <ProcessNode key={child.id} process={child} level={level + 1} />
+                      ))}
+                      <Pagination
+                        currentPage={childMeta.page}
+                        totalPages={childMeta.totalPages}
+                        totalItems={childMeta.totalItems}
+                        itemsPerPage={childMeta.limit}
+                        onPageChange={handleChildPageChange}
+                        className="mt-3"
+                      />
+                    </div>
+                  )}
+                </>
               )}
-              
-              {process.responsible && (
-                <div className="flex items-start space-x-2">
-                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Responsáveis</p>
-                    <p className="text-muted-foreground">{process.responsible}</p>
-                  </div>
-                </div>
-              )}
-              
-              {process.documentation && (
-                <div className="flex items-start space-x-2">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    <p className="font-medium">Documentação</p>
-                    <p className="text-muted-foreground">{process.documentation}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {hasChildren && (
-              <div className="mt-3 text-xs text-muted-foreground">
-                {children.length} subprocesso{children.length !== 1 ? 's' : ''}
-              </div>
-            )}
-          </CardContent>
+            </CardContent>
+          )}
         </Card>
-        
-        {hasChildren && isExpanded && (
-          <div className="ml-4 border-l-2 border-muted pl-4">
-            {children.map((child) => (
-              <ProcessNode key={child.id} process={child} level={level + 1} />
-            ))}
-          </div>
-        )}
       </div>
     )
   }
 
-  if (loading) {
+  if (rootLoading) {
     return (
       <div className="space-y-6">
         <div className="flex justify-center items-center py-12">
@@ -233,16 +275,13 @@ export function ProcessVisualization() {
     )
   }
 
-  const stats = getProcessStats()
-  const rootProcesses = getRootProcesses()
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Visualização de Processos</h1>
           <p className="text-muted-foreground">
-            Visualize a hierarquia completa dos seus processos organizacionais
+            Visualize a hierarquia dos processos. Pais primeiro; filhos sob demanda ao expandir.
           </p>
         </div>
         
@@ -251,6 +290,7 @@ export function ProcessVisualization() {
             variant="outline"
             onClick={toggleExpandAll}
             className="flex items-center space-x-2"
+            disabled={rootProcesses.length === 0}
           >
             {expandAll ? (
               <>
@@ -267,44 +307,19 @@ export function ProcessVisualization() {
         </div>
       </div>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Estatísticas básicas */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
               <Eye className="h-5 w-5 text-blue-600" />
               <div>
                 <p className="text-sm font-medium">Total de Processos</p>
-                <p className="text-2xl font-bold">{stats.total}</p>
+                <p className="text-2xl font-bold">{totalCount}</p>
               </div>
             </div>
           </CardContent>
         </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <GitBranch className="h-5 w-5 text-green-600" />
-              <div>
-                <p className="text-sm font-medium">Processos Manuais</p>
-                <p className="text-2xl font-bold">{stats.manual}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <Settings className="h-5 w-5 text-blue-600" />
-              <div>
-                <p className="text-sm font-medium">Processos Sistêmicos</p>
-                <p className="text-2xl font-bold">{stats.systemic}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
@@ -316,12 +331,13 @@ export function ProcessVisualization() {
             </div>
           </CardContent>
         </Card>
+        <div />
       </div>
 
       {/* Filtros */}
       <div className="flex items-center space-x-4">
         <Label htmlFor="area-filter">Filtrar por área:</Label>
-        <Select value={selectedArea} onValueChange={setSelectedArea}>
+        <Select value={selectedArea} onValueChange={(val) => { setSelectedArea(val); setRootPage(1); setExpandedNodes(new Set()); setChildrenCache({}); setExpandAll(false); }}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -336,7 +352,7 @@ export function ProcessVisualization() {
         </Select>
       </div>
 
-      {/* Árvore de Processos */}
+      {/* Raízes paginadas */}
       {rootProcesses.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -354,13 +370,21 @@ export function ProcessVisualization() {
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {rootProcesses
-            .sort((a, b) => a.name.localeCompare(b.name))
-            .map((process) => (
+        <>
+          <div className="space-y-4">
+            {rootProcesses.map((process) => (
               <ProcessNode key={process.id} process={process} />
             ))}
-        </div>
+          </div>
+          <Pagination
+            currentPage={rootMeta.page}
+            totalPages={rootMeta.totalPages}
+            totalItems={rootMeta.totalItems}
+            itemsPerPage={rootMeta.limit}
+            onPageChange={(p) => setRootPage(p)}
+            className="mt-6"
+          />
+        </>
       )}
     </div>
   )

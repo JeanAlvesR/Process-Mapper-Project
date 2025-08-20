@@ -4,22 +4,19 @@ import { AreaController } from '../controllers/AreaController';
 const router = Router();
 const areaController = new AreaController();
 
-// Create Area
+// Rotas básicas
 router.post('/', (req, res) => areaController.createArea(req, res));
-
-// Get All Areas
 router.get('/', (req, res) => areaController.getAllAreas(req, res));
 
-// Get Area by ID
+// Rotas com paginação
+router.get('/paginated', (req, res) => areaController.getAreasWithPagination(req, res));
+router.get('/count', (req, res) => areaController.getAreasCount(req, res));
+router.get('/search/:name', (req, res) => areaController.getAreasByName(req, res));
+
+// Rotas por ID
 router.get('/:id', (req, res) => areaController.getAreaById(req, res));
-
-// Get Area with Processes
-router.get('/:id/processes', (req, res) => areaController.getAreaWithProcesses(req, res));
-
-// Update Area
+router.get('/:id/with-processes', (req, res) => areaController.getAreaWithProcesses(req, res));
 router.put('/:id', (req, res) => areaController.updateArea(req, res));
-
-// Delete Area
 router.delete('/:id', (req, res) => areaController.deleteArea(req, res));
 
 export default router;

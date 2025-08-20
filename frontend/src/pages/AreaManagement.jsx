@@ -10,6 +10,8 @@ import { Plus, Edit, Trash2, Building2, Loader2, Settings, Eye } from 'lucide-re
 import { areaService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
+import { Pagination } from '../components/ui/pagination'
+import { Filters } from '../components/ui/filters'
 import { toast } from 'sonner'
 
 export function AreaManagement() {
@@ -29,10 +31,27 @@ export function AreaManagement() {
     areaName: ''
   })
 
+  // Estados de paginação
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10
+  })
+
+  // Estados de filtros
+  const [filters, setFilters] = useState({
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'DESC',
+    limit: '10',
+    page: 1
+  })
+
   // Carregar áreas da API
   useEffect(() => {
     loadAreas()
-  }, [])
+  }, [filters])
 
   const loadAreas = async (showNotification = false) => {
     try {
@@ -43,11 +62,21 @@ export function AreaManagement() {
         loadingToast = showLoading('Carregando áreas...')
       }
       
-      const areasData = await areaService.getAll()
-      setAreas(areasData)
+      const response = await areaService.getPaginated({
+        ...filters,
+        page: filters.page
+      })
+      
+      setAreas(response.data)
+      setPagination({
+        currentPage: response.meta.page,
+        totalPages: response.meta.totalPages,
+        totalItems: response.meta.totalItems,
+        itemsPerPage: response.meta.limit
+      })
       
       if (showNotification && loadingToast) {
-        updateToast(loadingToast, `${areasData.length} áreas carregadas com sucesso!`, 'success')
+        updateToast(loadingToast, `${response.data.length} áreas carregadas com sucesso!`, 'success')
       }
     } catch (error) {
       console.error('Erro ao carregar áreas:', error)
@@ -61,6 +90,28 @@ export function AreaManagement() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const handlePageChange = (page) => {
+    setFilters(prev => ({
+      ...prev,
+      page
+    }))
+  }
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+      page: 1 // Reset para primeira página ao mudar filtros
+    }))
+  }
+
+  const handleSearch = () => {
+    setFilters(prev => ({
+      ...prev,
+      page: 1
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -95,6 +146,8 @@ export function AreaManagement() {
       }
       
       resetForm()
+      // Recarregar dados para atualizar paginação
+      loadAreas()
     } catch (error) {
       console.error('Erro ao salvar área:', error)
       
@@ -150,6 +203,9 @@ export function AreaManagement() {
           }
         }
       })
+      
+      // Recarregar dados para atualizar paginação
+      loadAreas()
     } catch (error) {
       console.error('Erro ao deletar área:', error)
       showError('Erro ao deletar área. Tente novamente.')
@@ -330,67 +386,89 @@ export function AreaManagement() {
         </Dialog>
       </div>
 
+      {/* Filtros */}
+      <Filters
+        filters={filters}
+        onFiltersChange={handleFiltersChange}
+        onSearch={handleSearch}
+        searchPlaceholder="Buscar áreas por nome ou descrição..."
+      />
+
       {areas.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhuma área cadastrada</h3>
+            <h3 className="text-lg font-semibold mb-2">Nenhuma área encontrada</h3>
             <p className="text-muted-foreground text-center mb-4">
-              Comece criando a primeira área da sua empresa
+              {filters.search ? 'Tente ajustar os filtros de busca' : 'Comece criando a primeira área da sua empresa'}
             </p>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar primeira área
-            </Button>
+            {!filters.search && (
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar primeira área
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {areas.map((area) => (
-            <Card key={area.id} className="hover:shadow-md transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="flex items-center space-x-2">
-                      <Building2 className="h-5 w-5 text-primary" />
-                      <span>{area.name}</span>
-                    </CardTitle>
-                    {area.description && (
-                      <CardDescription className="mt-2">
-                        {area.description}
-                      </CardDescription>
-                    )}
+        <>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {areas.map((area) => (
+              <Card key={area.id} className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Building2 className="h-5 w-5 text-primary" />
+                        <span>{area.name}</span>
+                      </CardTitle>
+                      {area.description && (
+                        <CardDescription className="mt-2">
+                          {area.description}
+                        </CardDescription>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">
-                    Criada em {new Date(area.createdAt).toLocaleDateString()}
-                  </Badge>
-                  <div className="flex space-x-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleEdit(area)}
-                      disabled={submitting}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleDeleteClick(area.id)}
-                      disabled={submitting}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <Badge variant="secondary">
+                      Criada em {new Date(area.createdAt).toLocaleDateString()}
+                    </Badge>
+                    <div className="flex space-x-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEdit(area)}
+                        disabled={submitting}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteClick(area.id)}
+                        disabled={submitting}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          {/* Paginação */}
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            itemsPerPage={pagination.itemsPerPage}
+            onPageChange={handlePageChange}
+            className="mt-6"
+          />
+        </>
       )}
 
       <ConfirmDialog

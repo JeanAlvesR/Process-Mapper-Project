@@ -31,13 +31,43 @@ const apiRequest = async (endpoint, options = {}) => {
   }
 };
 
+// Função auxiliar para construir query string de paginação
+const buildPaginationQuery = (params = {}) => {
+  const queryParams = new URLSearchParams();
+  
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      queryParams.append(key, value.toString());
+    }
+  });
+  
+  return queryParams.toString();
+};
+
 // Serviços para Áreas
 export const areaService = {
   // Buscar todas as áreas
   getAll: () => apiRequest('/areas'),
   
+  // Buscar áreas com paginação
+  getPaginated: (params = {}) => {
+    const query = buildPaginationQuery(params);
+    const endpoint = query ? `/areas/paginated?${query}` : '/areas/paginated';
+    return apiRequest(endpoint);
+  },
+  
   // Buscar área por ID
   getById: (id) => apiRequest(`/areas/${id}`),
+  
+  // Buscar áreas por nome
+  getByName: (name, params = {}) => {
+    const query = buildPaginationQuery(params);
+    const endpoint = query ? `/areas/search/${encodeURIComponent(name)}?${query}` : `/areas/search/${encodeURIComponent(name)}`;
+    return apiRequest(endpoint);
+  },
+  
+  // Contar total de áreas
+  getCount: () => apiRequest('/areas/count'),
   
   // Criar nova área
   create: (areaData) => apiRequest('/areas', {
@@ -64,6 +94,33 @@ export const processService = {
     const endpoint = areaId ? `/processes?areaId=${areaId}` : '/processes';
     return apiRequest(endpoint);
   },
+  
+  // Buscar processos com paginação
+  getPaginated: (params = {}) => {
+    const query = buildPaginationQuery(params);
+    const endpoint = query ? `/processes/paginated?${query}` : '/processes/paginated';
+    return apiRequest(endpoint);
+  },
+  
+  // Buscar processos hierárquicos
+  getHierarchical: (params = {}) => {
+    const query = buildPaginationQuery(params);
+    const endpoint = query ? `/processes/hierarchical?${query}` : '/processes/hierarchical';
+    return apiRequest(endpoint);
+  },
+  
+  // Buscar processos por área com paginação
+  getByAreaPaginated: (areaId, params = {}) => {
+    const query = buildPaginationQuery(params);
+    const endpoint = query ? `/processes/area/${areaId}/paginated?${query}` : `/processes/area/${areaId}/paginated`;
+    return apiRequest(endpoint);
+  },
+  
+  // Contar total de processos
+  getCount: () => apiRequest('/processes/count'),
+  
+  // Contar processos por área
+  getCountByArea: (areaId) => apiRequest(`/processes/area/${areaId}/count`),
   
   // Buscar processo por ID
   getById: (id) => apiRequest(`/processes/${id}`),

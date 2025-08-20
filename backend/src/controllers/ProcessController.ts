@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { CreateProcessDto, UpdateProcessDto } from '../dtos/ProcessDto';
+import { ProcessPaginationQueryDto } from '../dtos/PaginationDto';
 import { IProcessService } from '../interfaces/IProcessService';
 import { container } from '../container/DependencyContainer';
 
@@ -41,6 +42,61 @@ export class ProcessController {
       res.status(200).json(processes);
     } catch (error) {
       res.status(500).json({ message: 'Error fetching processes' });
+    }
+  }
+
+  async getProcessesWithPagination(req: Request, res: Response): Promise<void> {
+    try {
+      const query: ProcessPaginationQueryDto = {
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        search: req.query.search as string,
+        sortBy: req.query.sortBy as string,
+        sortOrder: req.query.sortOrder as 'ASC' | 'DESC',
+        areaId: req.query.areaId as string,
+        parentId: req.query.parentId as string,
+        type: req.query.type as 'manual' | 'systemic',
+        responsible: req.query.responsible as string
+      };
+
+      const result = await this.processService.getProcessesWithPagination(query);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching processes with pagination' });
+    }
+  }
+
+  async getProcessesByAreaWithPagination(req: Request, res: Response): Promise<void> {
+    try {
+      const { areaId } = req.params;
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      
+      const result = await this.processService.getProcessesByAreaWithPagination(areaId, page, limit);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching processes by area with pagination' });
+    }
+  }
+
+  async getProcessesHierarchical(req: Request, res: Response): Promise<void> {
+    try {
+      const query: ProcessPaginationQueryDto = {
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        search: req.query.search as string,
+        sortBy: req.query.sortBy as string,
+        sortOrder: req.query.sortOrder as 'ASC' | 'DESC',
+        areaId: req.query.areaId as string,
+        parentId: req.query.parentId as string,
+        type: req.query.type as 'manual' | 'systemic',
+        responsible: req.query.responsible as string
+      };
+
+      const result = await this.processService.getProcessesHierarchical(query);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching hierarchical processes' });
     }
   }
 
@@ -118,6 +174,25 @@ export class ProcessController {
       } else {
         res.status(500).json({ message: 'Error deleting process' });
       }
+    }
+  }
+
+  async getProcessesCount(req: Request, res: Response): Promise<void> {
+    try {
+      const count = await this.processService.getProcessesCount();
+      res.status(200).json({ count });
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching processes count' });
+    }
+  }
+
+  async getProcessesCountByArea(req: Request, res: Response): Promise<void> {
+    try {
+      const { areaId } = req.params;
+      const count = await this.processService.getProcessesCountByArea(areaId);
+      res.status(200).json({ count });
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching processes count by area' });
     }
   }
 }

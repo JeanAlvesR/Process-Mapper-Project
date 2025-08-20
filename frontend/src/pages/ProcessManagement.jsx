@@ -12,6 +12,8 @@ import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Lo
 import { areaService, processService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
+import { Pagination } from '../components/ui/pagination'
+import { Filters } from '../components/ui/filters'
 
 export function ProcessManagement() {
   const { showSuccess, showError, showInfo } = useNotifications()
@@ -38,20 +40,42 @@ export function ProcessManagement() {
     processName: ''
   })
 
+  // Estados de paginação
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    itemsPerPage: 10
+  })
+
+  // Estados de filtros
+  const [filters, setFilters] = useState({
+    search: '',
+    sortBy: 'createdAt',
+    sortOrder: 'DESC',
+    limit: '10',
+    page: 1,
+    areaId: '',
+    type: '',
+    responsible: ''
+  })
+
   // Carregar dados da API
   useEffect(() => {
     loadData()
   }, [])
 
+  useEffect(() => {
+    if (areas.length > 0) {
+      loadProcesses()
+    }
+  }, [filters, areas])
+
   const loadData = async () => {
     try {
       setLoading(true)
-      const [areasData, processesData] = await Promise.all([
-        areaService.getAll(),
-        processService.getAll()
-      ])
+      const areasData = await areaService.getAll()
       setAreas(areasData)
-      setProcesses(processesData)
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       showError('Erro ao carregar dados. Verificando dados locais...')
@@ -69,6 +93,61 @@ export function ProcessManagement() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadProcesses = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await processService.getPaginated({
+        ...filters,
+        page: filters.page
+      })
+      
+      setProcesses(response.data)
+      setPagination({
+        currentPage: response.meta.page,
+        totalPages: response.meta.totalPages,
+        totalItems: response.meta.totalItems,
+        itemsPerPage: response.meta.limit
+      })
+    } catch (error) {
+      console.error('Erro ao carregar processos:', error)
+      showError('Erro ao carregar processos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handlePageChange = (page) => {
+    setFilters(prev => ({
+      ...prev,
+      page
+    }))
+  }
+
+  const handleFiltersChange = (newFilters) => {
+    setFilters(prev => ({
+      ...prev,
+      ...newFilters,
+      page: 1 // Reset para primeira página ao mudar filtros
+    }))
+  }
+
+  const handleSearch = () => {
+    setFilters(prev => ({
+      ...prev,
+      page: 1
+    }))
+  }
+
+  const handleAreaFilterChange = (areaId) => {
+    setSelectedArea(areaId)
+    setFilters(prev => ({
+      ...prev,
+      areaId: areaId === 'all' ? '' : areaId,
+      page: 1
+    }))
   }
 
   const handleSubmit = async (e) => {
@@ -92,6 +171,8 @@ export function ProcessManagement() {
       
       resetForm()
       setIsDialogOpen(false)
+      // Recarregar dados para atualizar paginação
+      loadProcesses()
     } catch (error) {
       console.error('Erro ao salvar processo:', error)
       showError('Erro ao salvar processo. Verifique se todos os campos obrigatórios estão preenchidos corretamente.')
@@ -135,6 +216,9 @@ export function ProcessManagement() {
       }
       removeProcessAndChildren(deleteDialog.processId)
       showSuccess(`Processo "${deleteDialog.processName}" excluído com sucesso!`)
+      
+      // Recarregar dados para atualizar paginação
+      loadProcesses()
     } catch (error) {
       console.error('Erro ao deletar processo:', error)
       showError('Erro ao deletar processo. Tente novamente.')
@@ -178,55 +262,6 @@ export function ProcessManagement() {
     }
     
     return level
-  }
-
-  const getFilteredProcesses = () => {
-    // Se não houver processos, retorna array vazio
-    if (!processes || processes.length === 0) {
-      return [];
-    }
-    
-    // Filtra por área se necessário
-    let filtered = [...processes]; // Cria uma cópia do array de processos
-    
-    if (selectedArea !== 'all') {
-      filtered = filtered.filter(p => p.areaId === selectedArea);
-    }
-    
-    // Se não houver processos após o filtro, retorna array vazio
-    if (filtered.length === 0) {
-      return [];
-    }
-    
-    // Ordenar por hierarquia
-    const sortedProcesses = [];
-    
-    // Função auxiliar para adicionar processos e seus filhos
-    const addProcessAndChildren = (parentId = null) => {
-      // Filtra os processos que são filhos do parentId atual
-      const children = filtered
-        .filter(p => {
-          // Se parentId for null, pega os processos sem pai
-          // Caso contrário, pega os processos com o parentId correspondente
-          if (parentId === null) {
-            return p.parentId === null || p.parentId === undefined;
-          }
-          return p.parentId === parentId;
-        })
-        .sort((a, b) => a.name.localeCompare(b.name));
-      
-      // Adiciona os filhos à lista ordenada
-      children.forEach(child => {
-        sortedProcesses.push(child);
-        // Chama recursivamente para adicionar os filhos deste processo
-        addProcessAndChildren(child.id);
-      });
-    };
-    
-    // Inicia a ordenação a partir dos processos sem pai (nível mais alto)
-    addProcessAndChildren(null);
-    
-    return sortedProcesses;
   }
 
   const getAvailableParents = () => {
@@ -448,9 +483,18 @@ export function ProcessManagement() {
         </Card>
       ) : (
         <>
+          {/* Filtros */}
+          <Filters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+            onSearch={handleSearch}
+            searchPlaceholder="Buscar processos por nome, descrição, ferramentas ou responsáveis..."
+          />
+
+          {/* Filtro por área */}
           <div className="flex items-center space-x-4">
             <Label htmlFor="area-filter" style={labelStyle}>Filtrar por área:</Label>
-            <Select value={selectedArea} onValueChange={setSelectedArea}>
+            <Select value={selectedArea} onValueChange={handleAreaFilterChange}>
               <SelectTrigger className="w-48">
                 <SelectValue />
               </SelectTrigger>
@@ -465,128 +509,142 @@ export function ProcessManagement() {
             </Select>
           </div>
 
-          {getFilteredProcesses().length === 0 ? (
+          {processes.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Nenhum processo cadastrado</h3>
+                <h3 className="text-lg font-semibold mb-2">Nenhum processo encontrado</h3>
                 <p className="text-muted-foreground text-center mb-4">
-                  Comece criando o primeiro processo
+                  {filters.search || selectedArea !== 'all' ? 'Tente ajustar os filtros de busca' : 'Comece criando o primeiro processo'}
                 </p>
-                <Button onClick={() => setIsDialogOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Criar primeiro processo
-                </Button>
+                {!filters.search && selectedArea === 'all' && (
+                  <Button onClick={() => setIsDialogOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Criar primeiro processo
+                  </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {getFilteredProcesses().map((process) => {
-                const level = getProcessLevel(process)
-                const marginLeft = level * 24
-                
-                return (
-                  <Card key={process.id} className="hover:shadow-md transition-shadow" style={{ marginLeft: `${marginLeft}px` }}>
-                    <CardHeader>
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <CardTitle className="flex items-center space-x-2">
-                            {process.type === 'systemic' ? (
-                              <Settings className="h-5 w-5 text-blue-600" />
-                            ) : (
-                              <GitBranch className="h-5 w-5 text-green-600" />
-                            )}
-                            <span>{process.name}</span>
-                            <Badge variant={process.type === 'systemic' ? 'default' : 'secondary'}>
-                              {process.type === 'systemic' ? 'Sistêmico' : 'Manual'}
-                            </Badge>
-                          </CardTitle>
-                          
-                          <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
-                            <div className="flex items-center space-x-1">
-                              <Building2 className="h-4 w-4" />
-                              <span>{getAreaName(process.areaId)}</span>
-                            </div>
-                            {process.parentId && (
+            <>
+              <div className="space-y-4">
+                {processes.map((process) => {
+                  const level = getProcessLevel(process)
+                  const marginLeft = level * 24
+                  
+                  return (
+                    <Card key={process.id} className="hover:shadow-md transition-shadow" style={{ marginLeft: `${marginLeft}px` }}>
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <CardTitle className="flex items-center space-x-2">
+                              {process.type === 'systemic' ? (
+                                <Settings className="h-5 w-5 text-blue-600" />
+                              ) : (
+                                <GitBranch className="h-5 w-5 text-green-600" />
+                              )}
+                              <span>{process.name}</span>
+                              <Badge variant={process.type === 'systemic' ? 'default' : 'secondary'}>
+                                {process.type === 'systemic' ? 'Sistêmico' : 'Manual'}
+                              </Badge>
+                            </CardTitle>
+                            
+                            <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                               <div className="flex items-center space-x-1">
-                                <GitBranch className="h-4 w-4" />
-                                <span>Subprocesso de: {getParentName(process.parentId)}</span>
+                                <Building2 className="h-4 w-4" />
+                                <span>{getAreaName(process.areaId)}</span>
                               </div>
+                              {process.parentId && (
+                                <div className="flex items-center space-x-1">
+                                  <GitBranch className="h-4 w-4" />
+                                  <span>Subprocesso de: {getParentName(process.parentId)}</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {process.description && (
+                              <CardDescription className="mt-2">
+                                {process.description}
+                              </CardDescription>
                             )}
                           </div>
                           
-                          {process.description && (
-                            <CardDescription className="mt-2">
-                              {process.description}
-                            </CardDescription>
+                          <div className="flex space-x-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleEdit(process)}
+                              disabled={submitting}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleDeleteClick(process.id)}
+                              disabled={submitting}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          {process.tools && (
+                            <div className="flex items-center space-x-2">
+                              <Settings className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">Ferramentas</p>
+                                <p className="text-muted-foreground">{process.tools}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {process.responsible && (
+                            <div className="flex items-center space-x-2">
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">Responsáveis</p>
+                                <p className="text-muted-foreground">{process.responsible}</p>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {process.documentation && (
+                            <div className="flex items-center space-x-2">
+                              <FileText className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">Documentação</p>
+                                <p className="text-muted-foreground">{process.documentation}</p>
+                              </div>
+                            </div>
                           )}
                         </div>
                         
-                        <div className="flex space-x-1">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(process)}
-                            disabled={submitting}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDeleteClick(process.id)}
-                            disabled={submitting}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                        <div className="mt-4 text-xs text-muted-foreground">
+                          Criado em {new Date(process.createdAt).toLocaleDateString('pt-BR')}
+                          {process.updatedAt !== process.createdAt && (
+                            <span> • Atualizado em {new Date(process.updatedAt).toLocaleDateString('pt-BR')}</span>
+                          )}
                         </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                        {process.tools && (
-                          <div className="flex items-center space-x-2">
-                            <Settings className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">Ferramentas</p>
-                              <p className="text-muted-foreground">{process.tools}</p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {process.responsible && (
-                          <div className="flex items-center space-x-2">
-                            <Users className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">Responsáveis</p>
-                              <p className="text-muted-foreground">{process.responsible}</p>
-                            </div>
-                          </div>
-                        )}
-                        
-                        {process.documentation && (
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="font-medium">Documentação</p>
-                              <p className="text-muted-foreground">{process.documentation}</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="mt-4 text-xs text-muted-foreground">
-                        Criado em {new Date(process.createdAt).toLocaleDateString('pt-BR')}
-                        {process.updatedAt !== process.createdAt && (
-                          <span> • Atualizado em {new Date(process.updatedAt).toLocaleDateString('pt-BR')}</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {/* Paginação */}
+              <Pagination
+                currentPage={pagination.currentPage}
+                totalPages={pagination.totalPages}
+                totalItems={pagination.totalItems}
+                itemsPerPage={pagination.itemsPerPage}
+                onPageChange={handlePageChange}
+                className="mt-6"
+              />
+            </>
           )}
         </>
       )}

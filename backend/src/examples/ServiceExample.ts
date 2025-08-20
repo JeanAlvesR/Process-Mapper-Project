@@ -2,6 +2,8 @@ import { AreaService } from '../services/AreaService';
 import { MockAreaRepository } from '../repositories/mocks/MockAreaRepository';
 import { MockProcessRepository } from '../repositories/mocks/MockProcessRepository';
 import { CreateAreaDto } from '../dtos/AreaDto';
+import { AreaRepository } from '../repositories/AreaRepository';
+import { ProcessRepository } from '../repositories/ProcessRepository';
 
 /**
  * Exemplo de como usar as interfaces e mocks para testes
@@ -14,7 +16,7 @@ export class ServiceExample {
   static async exampleWithRealRepositories() {
     console.log('=== Exemplo com Repositories Reais ===');
     
-    const areaService = new AreaService();
+    const areaService = new AreaService(new AreaRepository(), new ProcessRepository());
     
     try {
       // Criar uma área

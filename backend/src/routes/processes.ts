@@ -4,22 +4,21 @@ import { ProcessController } from '../controllers/ProcessController';
 const router = Router();
 const processController = new ProcessController();
 
-// Create Process
+// Rotas básicas
 router.post('/', (req, res) => processController.createProcess(req, res));
-
-// Get All Processes
 router.get('/', (req, res) => processController.getAllProcesses(req, res));
 
-// Get Process by ID
+// Rotas com paginação
+router.get('/paginated', (req, res) => processController.getProcessesWithPagination(req, res));
+router.get('/hierarchical', (req, res) => processController.getProcessesHierarchical(req, res));
+router.get('/count', (req, res) => processController.getProcessesCount(req, res));
+router.get('/area/:areaId/paginated', (req, res) => processController.getProcessesByAreaWithPagination(req, res));
+router.get('/area/:areaId/count', (req, res) => processController.getProcessesCountByArea(req, res));
+
+// Rotas por ID
 router.get('/:id', (req, res) => processController.getProcessById(req, res));
-
-// Get Process with Details
-router.get('/:id/details', (req, res) => processController.getProcessWithDetails(req, res));
-
-// Update Process
+router.get('/:id/with-details', (req, res) => processController.getProcessWithDetails(req, res));
 router.put('/:id', (req, res) => processController.updateProcess(req, res));
-
-// Delete Process
 router.delete('/:id', (req, res) => processController.deleteProcess(req, res));
 
 export default router;

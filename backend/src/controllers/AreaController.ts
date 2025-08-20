@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { CreateAreaDto, UpdateAreaDto } from '../dtos/AreaDto';
+import { AreaPaginationQueryDto } from '../dtos/PaginationDto';
 import { IAreaService } from '../interfaces/IAreaService';
 import { container } from '../container/DependencyContainer';
 
@@ -36,6 +37,25 @@ export class AreaController {
       res.status(200).json(areas);
     } catch (error) {
       res.status(500).json({ message: 'Error fetching areas' });
+    }
+  }
+
+  async getAreasWithPagination(req: Request, res: Response): Promise<void> {
+    try {
+      const query: AreaPaginationQueryDto = {
+        page: req.query.page ? parseInt(req.query.page as string) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string) : 10,
+        search: req.query.search as string,
+        sortBy: req.query.sortBy as string,
+        sortOrder: req.query.sortOrder as 'ASC' | 'DESC',
+        name: req.query.name as string,
+        description: req.query.description as string
+      };
+
+      const result = await this.areaService.getAreasWithPagination(query);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching areas with pagination' });
     }
   }
 
@@ -109,6 +129,28 @@ export class AreaController {
       } else {
         res.status(500).json({ message: 'Error deleting area' });
       }
+    }
+  }
+
+  async getAreasByName(req: Request, res: Response): Promise<void> {
+    try {
+      const { name } = req.params;
+      const page = req.query.page ? parseInt(req.query.page as string) : 1;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      
+      const result = await this.areaService.getAreasByName(name, page, limit);
+      res.status(200).json(result);
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching areas by name' });
+    }
+  }
+
+  async getAreasCount(req: Request, res: Response): Promise<void> {
+    try {
+      const count = await this.areaService.getAreasCount();
+      res.status(200).json({ count });
+    } catch (error) {
+      res.status(500).json({ message: 'Error fetching areas count' });
     }
   }
 }
