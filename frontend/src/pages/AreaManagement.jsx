@@ -238,14 +238,21 @@ export function AreaManagement() {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          // Sempre permite abrir
+          if (open) {
+            setIsDialogOpen(true)
+          }
+          // Para fechar, só permite se for através de botões internos
+          // (não ao clicar fora)
+        }}>
           <DialogTrigger asChild>
             <Button onClick={resetForm}>
               <Plus className="h-4 w-4 mr-2" />
               Nova Área
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg [&>button]:hidden" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>
                 {editingArea ? 'Editar Área' : 'Nova Área'}

@@ -8,6 +8,7 @@ export function Pagination({
   itemsPerPage, 
   onPageChange,
   showInfo = true,
+  compactInfo = false,
   className = ""
 }) {
   const startItem = (currentPage - 1) * itemsPerPage + 1
@@ -35,6 +36,7 @@ export function Pagination({
           key={i}
           variant={i === currentPage ? "default" : "outline"}
           size="sm"
+          type="button"
           onClick={() => handlePageChange(i)}
           className="min-w-[40px]"
         >
@@ -53,8 +55,10 @@ export function Pagination({
   return (
     <div className={`flex items-center justify-between ${className}`}>
       {showInfo && (
-        <div className="text-sm text-muted-foreground">
-          Mostrando {startItem} a {endItem} de {totalItems} resultados
+        <div className="text-sm text-muted-foreground whitespace-nowrap">
+          {compactInfo 
+            ? `${startItem}-${endItem} de ${totalItems}`
+            : `Mostrando ${startItem} a ${endItem} de ${totalItems} resultados`}
         </div>
       )}
       
@@ -62,6 +66,7 @@ export function Pagination({
         <Button
           variant="outline"
           size="sm"
+          type="button"
           onClick={() => handlePageChange(1)}
           disabled={currentPage === 1}
         >
@@ -71,6 +76,7 @@ export function Pagination({
         <Button
           variant="outline"
           size="sm"
+          type="button"
           onClick={() => handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
         >
@@ -84,6 +90,7 @@ export function Pagination({
         <Button
           variant="outline"
           size="sm"
+          type="button"
           onClick={() => handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
@@ -93,6 +100,7 @@ export function Pagination({
         <Button
           variant="outline"
           size="sm"
+          type="button"
           onClick={() => handlePageChange(totalPages)}
           disabled={currentPage === totalPages}
         >

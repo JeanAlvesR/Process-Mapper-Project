@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -40,6 +40,16 @@ export function ProcessManagement() {
     processId: null,
     processName: ''
   })
+
+  // Estados do seletor de Processo Pai
+  const [isParentSelectorOpen, setIsParentSelectorOpen] = useState(false)
+  const [parentProcesses, setParentProcesses] = useState([])
+  const [parentListLoading, setParentListLoading] = useState(false)
+  const [parentSearch, setParentSearch] = useState('')
+  const [parentAppliedSearch, setParentAppliedSearch] = useState('')
+  const [parentPagination, setParentPagination] = useState({ page: 1, totalPages: 1, totalItems: 0, limit: 10 })
+  const [selectedParentName, setSelectedParentName] = useState('')
+  const parentListRef = useRef(null)
 
   // Estados de paginação
   const [pagination, setPagination] = useState({
@@ -191,6 +201,7 @@ export function ProcessManagement() {
       documentation: process.documentation || '',
       type: process.type || 'manual'
     })
+    setSelectedParentName((process && process.parent && process.parent.name) ? process.parent.name : '')
     setIsDialogOpen(true)
   }
 
@@ -279,6 +290,32 @@ export function ProcessManagement() {
     )
   }
 
+  // Carrega processos para o seletor de processo pai com paginação e busca
+  const loadParentProcesses = async (page = parentPagination.page, searchTerm = parentAppliedSearch) => {
+    if (!formData.areaId) return
+    try {
+      setParentListLoading(true)
+      const response = await processService.getPaginated({
+        areaId: formData.areaId,
+        page,
+        limit: parentPagination.limit,
+        search: searchTerm
+      })
+      setParentProcesses(response.data)
+      setParentPagination({
+        page: response.meta.page,
+        totalPages: response.meta.totalPages,
+        totalItems: response.meta.totalItems,
+        limit: response.meta.limit
+      })
+    } catch (error) {
+      console.error('Erro ao carregar processos para seleção de pai:', error)
+      showError('Erro ao carregar processos da área')
+    } finally {
+      setParentListLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -305,17 +342,31 @@ export function ProcessManagement() {
           </p>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          // Sempre permite abrir
+          if (open) {
+            setIsDialogOpen(true)
+          }
+          // Para fechar, só permite se for através de botões internos
+          // (não ao clicar fora)
+        }}>
           <DialogTrigger asChild>
             <Button onClick={resetForm} disabled={areas.length === 0 || submitting}>
               <Plus className="h-4 w-4 mr-2" />
               Novo Processo
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl [&>button]:hidden" onPointerDownOutside={(e) => e.preventDefault()}>
             <DialogHeader>
               <DialogTitle>
-                {editingProcess ? 'Editar Processo' : 'Novo Processo'}
+                <span className="inline-flex items-center gap-2">
+                  {formData.type === 'systemic' ? (
+                    <Settings className="h-5 w-5 text-blue-600" />
+                  ) : (
+                    <GitBranch className="h-5 w-5 text-green-600" />
+                  )}
+                  {editingProcess ? 'Editar Processo' : 'Novo Processo'}
+                </span>
               </DialogTitle>
               <DialogDescription>
                 {editingProcess 
@@ -328,7 +379,7 @@ export function ProcessManagement() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="name" style={labelStyle}>Nome do Processo</Label>
+                  <Label htmlFor="name" style={labelStyle}><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" /> Nome do Processo</span></Label>
                   <Input
                     id="name"
                     value={formData.name}
@@ -340,7 +391,7 @@ export function ProcessManagement() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="type" style={labelStyle}>Tipo</Label>
+                  <Label htmlFor="type" style={labelStyle}><span className="inline-flex items-center gap-2"><Settings className="h-4 w-4" /> Tipo</span></Label>
                   <Select 
                     value={formData.type} 
                     onValueChange={(value) => setFormData({ ...formData, type: value })}
@@ -358,7 +409,7 @@ export function ProcessManagement() {
               </div>
               
               <div>
-                <Label htmlFor="description" style={labelStyle}>Descrição</Label>
+                <Label htmlFor="description" style={labelStyle}><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" /> Descrição</span></Label>
                 <Textarea
                   id="description"
                   value={formData.description}
@@ -371,10 +422,10 @@ export function ProcessManagement() {
               
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="areaId" style={labelStyle}>Área</Label>
+                  <Label htmlFor="areaId" style={labelStyle}><span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" /> Área</span></Label>
                   <Select 
                     value={formData.areaId} 
-                    onValueChange={(value) => setFormData({ ...formData, areaId: value, parentId: '' })}
+                    onValueChange={(value) => { setFormData({ ...formData, areaId: value, parentId: '' }); setSelectedParentName('') }}
                     required
                     disabled={submitting}
                   >
@@ -392,31 +443,41 @@ export function ProcessManagement() {
                 </div>
                 
                 <div>
-                  <Label htmlFor="parentId" style={labelStyle}>Processo Pai (Opcional)</Label>
-                  <Select 
-                    value={formData.parentId} 
-                    onValueChange={(value) => setFormData({ ...formData, parentId: value })}
-                    disabled={submitting}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Nenhum (processo principal)" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Nenhum (processo principal)</SelectItem>
-                      {getAvailableParents().map((process) => (
-                        <SelectItem key={process.id} value={process.id}>
-                          {process.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="parentId" style={labelStyle}><span className="inline-flex items-center gap-2"><GitBranch className="h-4 w-4" /> Processo Pai (Opcional)</span></Label>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() => {
+                        if (!formData.areaId) {
+                          showError('Selecione uma área antes de escolher o processo pai.')
+                          return
+                        }
+                        setParentPagination(prev => ({ ...prev, page: 1 }))
+                        setParentAppliedSearch(parentSearch)
+                        setIsParentSelectorOpen(true)
+                        loadParentProcesses(1, parentSearch)
+                      }}
+                      disabled={submitting}
+                    >
+                      {formData.parentId ? 'Selecionado' : 'Selecionar'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => { setFormData({ ...formData, parentId: '' }); setSelectedParentName('') }}
+                      disabled={submitting || !formData.parentId}
+                    >
+                      Limpar
+                    </Button>
+                  </div>
                 </div>
               </div>
               
               <Separator />
               
               <div>
-                <Label htmlFor="tools" style={labelStyle}>Ferramentas Utilizadas</Label>
+                <Label htmlFor="tools" style={labelStyle}><span className="inline-flex items-center gap-2"><Settings className="h-4 w-4" /> Ferramentas Utilizadas</span></Label>
                 <Input
                   id="tools"
                   value={formData.tools}
@@ -427,7 +488,7 @@ export function ProcessManagement() {
               </div>
               
               <div>
-                <Label htmlFor="responsible" style={labelStyle}>Responsáveis</Label>
+                <Label htmlFor="responsible" style={labelStyle}><span className="inline-flex items-center gap-2"><Users className="h-4 w-4" /> Responsáveis</span></Label>
                 <Input
                   id="responsible"
                   value={formData.responsible}
@@ -438,7 +499,7 @@ export function ProcessManagement() {
               </div>
               
               <div>
-                <Label htmlFor="documentation" style={labelStyle}>Documentação Associada</Label>
+                <Label htmlFor="documentation" style={labelStyle}><span className="inline-flex items-center gap-2"><FileText className="h-4 w-4" /> Documentação Associada</span></Label>
                 <Textarea
                   id="documentation"
                   value={formData.documentation}
@@ -659,6 +720,110 @@ export function ProcessManagement() {
           )}
         </>
       )}
+
+      {/* Dialogo de seleção de Processo Pai */}
+      <Dialog open={isParentSelectorOpen} onOpenChange={(open) => {
+        // Sempre permite abrir
+        if (open) {
+          setIsParentSelectorOpen(true)
+        }
+        // Para fechar, só permite se for através de botões internos
+        // (não ao clicar fora)
+      }}>
+        <DialogContent className="max-w-3xl [&>button]:hidden" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Selecionar Processo Pai</DialogTitle>
+            <DialogDescription>
+              Escolha um processo da mesma área para ser o processo pai. Use a busca por descrição e navegue pelas páginas.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="flex items-end space-x-2">
+              <div className="flex-1">
+                <Label htmlFor="parentSearch" style={labelStyle}>Pesquisar por descrição</Label>
+                <Input
+                  id="parentSearch"
+                  value={parentSearch}
+                  onChange={(e) => setParentSearch(e.target.value)}
+                  placeholder="Digite parte da descrição do processo"
+                />
+              </div>
+              <Button
+                type="button"
+                onClick={() => { setParentPagination(prev => ({ ...prev, page: 1 })); setParentAppliedSearch(parentSearch); loadParentProcesses(1, parentSearch) }}
+              >
+                Buscar
+              </Button>
+            </div>
+
+            <div className="relative">
+              {parentListLoading && (
+                <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                  <div className="flex items-center gap-2 bg-background p-3 rounded-lg border shadow-lg">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span className="text-sm">Carregando...</span>
+                  </div>
+                </div>
+              )}
+              <div ref={parentListRef} className="space-y-2 max-h-80 overflow-auto">
+                {parentProcesses.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-8 text-center">Nenhum processo encontrado</div>
+                ) : (
+                  parentProcesses.map(proc => (
+                    <div key={proc.id} className="flex items-center justify-between p-2 border rounded-md">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          {proc.type === 'systemic' ? (
+                            <Settings className="h-4 w-4 text-blue-600 shrink-0" />
+                          ) : (
+                            <GitBranch className="h-4 w-4 text-green-600 shrink-0" />
+                          )}
+                          <div className="font-medium text-sm truncate">{proc.name}</div>
+                        </div>
+                        {proc.description && (
+                          <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{proc.description}</div>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setFormData({ ...formData, parentId: proc.id })
+                          setSelectedParentName(proc.name)
+                          setIsParentSelectorOpen(false)
+                        }}
+                      >
+                        Selecionar
+                      </Button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <Pagination
+              currentPage={parentPagination.page}
+              totalPages={parentPagination.totalPages}
+              totalItems={parentPagination.totalItems}
+              itemsPerPage={parentPagination.limit}
+              onPageChange={(page) => { if (parentListRef.current) { parentListRef.current.scrollTop = 0 }; setParentPagination(prev => ({ ...prev, page })); loadParentProcesses(page, parentAppliedSearch) }}
+              compactInfo={true}
+              className="mt-2"
+            />
+            
+            <div className="flex justify-end pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsParentSelectorOpen(false)}
+                disabled={parentListLoading}
+              >
+                Cancelar
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         isOpen={deleteDialog.isOpen}

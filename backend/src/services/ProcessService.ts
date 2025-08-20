@@ -8,7 +8,7 @@ import { IProcessService } from '../interfaces/IProcessService';
 export class ProcessService implements IProcessService {
   constructor(
     private processRepository: IProcessRepository,
-    private areaRepository: IAreaRepository
+    private areaRepository: IAreaRepository 
   ) {}
 
   async createProcess(createProcessDto: CreateProcessDto): Promise<Process> {
