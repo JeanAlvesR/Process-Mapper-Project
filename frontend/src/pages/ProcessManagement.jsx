@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Loader2, X } from 'lucide-react'
+import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Loader2, X, Save } from 'lucide-react'
 import { areaService, processService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
@@ -368,7 +368,7 @@ export function ProcessManagement() {
           // (não ao clicar fora)
         }}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm} disabled={areas.length === 0 || submitting}>
+            <Button onClick={resetForm} disabled={areas.length === 0 || submitting} variant="save">
               <Plus className="h-4 w-4 mr-2" />
               Novo Processo
             </Button>
@@ -530,20 +530,25 @@ export function ProcessManagement() {
               <div className="flex justify-end space-x-2">
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="cancel" 
                   onClick={() => setIsDialogOpen(false)}
                   disabled={submitting}
+                  className="flex items-center gap-2"
                 >
+                  <X className="h-4 w-4" />
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" variant="save" disabled={submitting} className="flex items-center gap-2">
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       {editingProcess ? 'Atualizando...' : 'Criando...'}
                     </>
                   ) : (
-                    editingProcess ? 'Salvar' : 'Criar'
+                    <>
+                      <Save className="h-4 w-4" />
+                      {editingProcess ? 'Salvar' : 'Criar'}
+                    </>
                   )}
                 </Button>
               </div>
@@ -560,7 +565,7 @@ export function ProcessManagement() {
             <p className="text-muted-foreground text-center mb-4">
               Você precisa cadastrar pelo menos uma área antes de criar processos
             </p>
-            <Button asChild>
+            <Button asChild variant="save">
               <a href="/areas">Cadastrar Áreas</a>
             </Button>
           </CardContent>
@@ -608,7 +613,7 @@ export function ProcessManagement() {
                   {filters.search || selectedArea !== 'all' ? 'Tente ajustar os filtros de busca' : 'Comece criando o primeiro processo'}
                 </p>
                 {!filters.search && selectedArea === 'all' && (
-                  <Button onClick={() => setIsDialogOpen(true)}>
+                  <Button onClick={() => setIsDialogOpen(true)} variant="save">
                     <Plus className="h-4 w-4 mr-2" />
                     Criar primeiro processo
                   </Button>
@@ -662,7 +667,7 @@ export function ProcessManagement() {
                           <div className="flex space-x-1">
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="edit"
                               onClick={() => handleEdit(process)}
                               disabled={submitting}
                             >
@@ -670,7 +675,7 @@ export function ProcessManagement() {
                             </Button>
                             <Button
                               size="sm"
-                              variant="outline"
+                              variant="delete"
                               onClick={() => handleDeleteClick(process.id)}
                               disabled={submitting}
                             >
@@ -832,10 +837,12 @@ export function ProcessManagement() {
             <div className="flex justify-end pt-4">
               <Button
                 type="button"
-                variant="outline"
+                variant="cancel"
                 onClick={() => setIsParentSelectorOpen(false)}
                 disabled={parentListLoading}
+                className="flex items-center gap-2"
               >
+                <X className="h-4 w-4" />
                 Cancelar
               </Button>
             </div>

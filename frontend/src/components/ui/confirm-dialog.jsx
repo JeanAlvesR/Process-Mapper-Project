@@ -8,6 +8,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { X, Check } from 'lucide-react'
 
 export function ConfirmDialog({ 
   isOpen, 
@@ -29,11 +30,16 @@ export function ConfirmDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel>{cancelText}</AlertDialogCancel>
+          <AlertDialogCancel className="flex items-center gap-2">
+            <X className="h-4 w-4" />
+            {cancelText}
+          </AlertDialogCancel>
           <AlertDialogAction 
             onClick={onConfirm}
-            className={variant === "destructive" ? "bg-destructive text-destructive-foreground hover:bg-destructive/90" : ""}
+            variant={variant === "destructive" ? "delete" : "save"}
+            className="flex items-center gap-2"
           >
+            <Check className="h-4 w-4" />
             {confirmText}
           </AlertDialogAction>
         </AlertDialogFooter>

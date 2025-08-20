@@ -51,7 +51,7 @@ export function Home() {
               <CardDescription>{feature.description}</CardDescription>
             </CardHeader>
             <CardContent>
-              <Button asChild className="w-full">
+              <Button asChild className="w-full" variant="save">
                 <Link to={feature.path} className="flex items-center justify-center space-x-2">
                   <span>Acessar</span>
                   <ArrowRight className="h-4 w-4" />

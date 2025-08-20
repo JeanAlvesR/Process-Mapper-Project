@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Edit, Trash2, Building2, Loader2 } from 'lucide-react'
+import { Plus, Edit, Trash2, Building2, Loader2, X, Save } from 'lucide-react'
 import { areaService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
@@ -257,7 +257,7 @@ export function AreaManagement() {
           // (não ao clicar fora)
         }}>
           <DialogTrigger asChild>
-            <Button onClick={resetForm}>
+            <Button onClick={resetForm} variant="save">
               <Plus className="h-4 w-4 mr-2" />
               Nova Área
             </Button>
@@ -303,20 +303,25 @@ export function AreaManagement() {
               <div className="flex justify-end space-x-2">
                 <Button 
                   type="button" 
-                  variant="outline" 
+                  variant="cancel" 
                   onClick={resetForm}
                   disabled={submitting}
+                  className="flex items-center gap-2"
                 >
+                  <X className="h-4 w-4" />
                   Cancelar
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" variant="save" disabled={submitting} className="flex items-center gap-2">
                   {submitting ? (
                     <>
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                       {editingArea ? 'Atualizando...' : 'Criando...'}
                     </>
                   ) : (
-                    editingArea ? 'Salvar' : 'Criar'
+                    <>
+                      <Save className="h-4 w-4" />
+                      {editingArea ? 'Salvar' : 'Criar'}
+                    </>
                   )}
                 </Button>
               </div>
@@ -347,7 +352,7 @@ export function AreaManagement() {
               {filters.search ? 'Tente ajustar os filtros de busca' : 'Comece criando a primeira área da sua empresa'}
             </p>
             {!filters.search && (
-              <Button onClick={() => setIsDialogOpen(true)}>
+              <Button onClick={() => setIsDialogOpen(true)} variant="save">
                 <Plus className="h-4 w-4 mr-2" />
                 Criar primeira área
               </Button>
@@ -382,7 +387,7 @@ export function AreaManagement() {
                     <div className="flex space-x-1">
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="edit"
                         onClick={() => handleEdit(area)}
                         disabled={submitting}
                       >
@@ -390,7 +395,7 @@ export function AreaManagement() {
                       </Button>
                       <Button
                         size="sm"
-                        variant="outline"
+                        variant="delete"
                         onClick={() => handleDeleteClick(area.id)}
                         disabled={submitting}
                       >

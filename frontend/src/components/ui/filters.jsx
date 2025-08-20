@@ -64,6 +64,7 @@ export function Filters({
           />
         </div>
         <Button onClick={onSearch} size="sm">
+          <Search className="h-4 w-4 mr-1" />
           Buscar
         </Button>
         <Button 
