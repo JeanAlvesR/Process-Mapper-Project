@@ -22,7 +22,8 @@ export function ProcessManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingProcess, setEditingProcess] = useState(null)
   const [selectedArea, setSelectedArea] = useState('all')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // inicial
+  const [listLoading, setListLoading] = useState(false) // atualizações por filtro/página
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -48,7 +49,7 @@ export function ProcessManagement() {
     itemsPerPage: 10
   })
 
-  // Estados de filtros
+  // Filtros editáveis (controlados pela UI)
   const [filters, setFilters] = useState({
     search: '',
     sortBy: 'createdAt',
@@ -59,17 +60,20 @@ export function ProcessManagement() {
     type: '',
     responsible: ''
   })
+  // Filtros aplicados (usados nas requisições)
+  const [appliedFilters, setAppliedFilters] = useState(filters)
 
-  // Carregar dados da API
+  // Carregar dados da API (áreas) inicialmente
   useEffect(() => {
     loadData()
   }, [])
 
+  // Carregar processos quando filtros aplicados mudarem
   useEffect(() => {
     if (areas.length > 0) {
       loadProcesses()
     }
-  }, [filters, areas])
+  }, [appliedFilters, areas])
 
   const loadData = async () => {
     try {
@@ -79,7 +83,6 @@ export function ProcessManagement() {
     } catch (error) {
       console.error('Erro ao carregar dados:', error)
       showError('Erro ao carregar dados. Verificando dados locais...')
-      // Em caso de erro, tenta carregar do localStorage como fallback
       const savedAreas = localStorage.getItem('process-mapper-areas')
       const savedProcesses = localStorage.getItem('process-mapper-processes')
       
@@ -97,13 +100,11 @@ export function ProcessManagement() {
 
   const loadProcesses = async () => {
     try {
-      setLoading(true)
-      
+      setListLoading(true)
       const response = await processService.getPaginated({
-        ...filters,
-        page: filters.page
+        ...appliedFilters,
+        page: appliedFilters.page
       })
-      
       setProcesses(response.data)
       setPagination({
         currentPage: response.meta.page,
@@ -115,12 +116,12 @@ export function ProcessManagement() {
       console.error('Erro ao carregar processos:', error)
       showError('Erro ao carregar processos')
     } finally {
-      setLoading(false)
+      setListLoading(false)
     }
   }
 
   const handlePageChange = (page) => {
-    setFilters(prev => ({
+    setAppliedFilters(prev => ({
       ...prev,
       page
     }))
@@ -130,15 +131,15 @@ export function ProcessManagement() {
     setFilters(prev => ({
       ...prev,
       ...newFilters,
-      page: 1 // Reset para primeira página ao mudar filtros
+      page: 1
     }))
   }
 
   const handleSearch = () => {
-    setFilters(prev => ({
-      ...prev,
+    setAppliedFilters({
+      ...filters,
       page: 1
-    }))
+    })
   }
 
   const handleAreaFilterChange = (areaId) => {
@@ -156,14 +157,12 @@ export function ProcessManagement() {
     
     try {
       if (editingProcess) {
-        // Editar processo existente
         const updatedProcess = await processService.update(editingProcess.id, formData)
         setProcesses(processes.map(process => 
           process.id === editingProcess.id ? updatedProcess : process
         ))
         showSuccess(`Processo "${formData.name}" atualizado com sucesso!`)
       } else {
-        // Criar novo processo
         const newProcess = await processService.create(formData)
         setProcesses([...processes, newProcess])
         showSuccess(`Processo "${formData.name}" criado com sucesso!`)
@@ -171,7 +170,6 @@ export function ProcessManagement() {
       
       resetForm()
       setIsDialogOpen(false)
-      // Recarregar dados para atualizar paginação
       loadProcesses()
     } catch (error) {
       console.error('Erro ao salvar processo:', error)
@@ -517,7 +515,12 @@ export function ProcessManagement() {
             </Select>
           </div>
 
-          {processes.length === 0 ? (
+          {listLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin" />
+              <span className="ml-2">Carregando processos...</span>
+            </div>
+          ) : processes.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12">
                 <GitBranch className="h-12 w-12 text-muted-foreground mb-4" />

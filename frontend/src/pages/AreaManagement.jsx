@@ -19,7 +19,8 @@ export function AreaManagement() {
   const [areas, setAreas] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingArea, setEditingArea] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true) // somente para carregamento inicial
+  const [listLoading, setListLoading] = useState(false) // atualizações por filtro/paginação
   const [submitting, setSubmitting] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
@@ -39,7 +40,7 @@ export function AreaManagement() {
     itemsPerPage: 10
   })
 
-  // Estados de filtros
+  // Filtros editáveis (UI)
   const [filters, setFilters] = useState({
     search: '',
     sortBy: 'createdAt',
@@ -47,15 +48,24 @@ export function AreaManagement() {
     limit: '10',
     page: 1
   })
+  // Filtros aplicados (requisições)
+  const [appliedFilters, setAppliedFilters] = useState(filters)
 
-  // Carregar áreas da API
+  // Carregar áreas (inicial)
   useEffect(() => {
-    loadAreas()
-  }, [filters])
+    loadAreas(false, true)
+  }, [])
 
-  const loadAreas = async (showNotification = false) => {
+  // Carregar áreas quando filtros aplicados mudarem
+  useEffect(() => {
+    if (!loading) {
+      loadAreas()
+    }
+  }, [appliedFilters])
+
+  const loadAreas = async (showNotification = false, isInitial = false) => {
     try {
-      setLoading(true)
+      if (isInitial) setLoading(true); else setListLoading(true)
       let loadingToast = null
       
       if (showNotification) {
@@ -63,8 +73,8 @@ export function AreaManagement() {
       }
       
       const response = await areaService.getPaginated({
-        ...filters,
-        page: filters.page
+        ...appliedFilters,
+        page: appliedFilters.page
       })
       
       setAreas(response.data)
@@ -81,19 +91,18 @@ export function AreaManagement() {
     } catch (error) {
       console.error('Erro ao carregar áreas:', error)
       showError('Erro ao carregar áreas. Verificando dados locais...')
-      // Em caso de erro, tenta carregar do localStorage como fallback
       const savedAreas = localStorage.getItem('process-mapper-areas')
       if (savedAreas) {
         setAreas(JSON.parse(savedAreas))
         showInfo('Carregando dados salvos localmente')
       }
     } finally {
-      setLoading(false)
+      if (isInitial) setLoading(false); else setListLoading(false)
     }
   }
 
   const handlePageChange = (page) => {
-    setFilters(prev => ({
+    setAppliedFilters(prev => ({
       ...prev,
       page
     }))
@@ -103,15 +112,15 @@ export function AreaManagement() {
     setFilters(prev => ({
       ...prev,
       ...newFilters,
-      page: 1 // Reset para primeira página ao mudar filtros
+      page: 1 // não busca ainda; só ao clicar em Buscar
     }))
   }
 
   const handleSearch = () => {
-    setFilters(prev => ({
-      ...prev,
+    setAppliedFilters({
+      ...filters,
       page: 1
-    }))
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -120,24 +129,20 @@ export function AreaManagement() {
     
     try {
       if (editingArea) {
-        // Editar área existente
         const updatedArea = await areaService.update(editingArea.id, formData)
         setAreas(areas.map(area => 
           area.id === editingArea.id ? updatedArea : area
         ))
         
-        // Notificação com ícone customizado
         toast.success(`Área "${formData.name}" atualizada!`, {
           description: 'As alterações foram salvas com sucesso.',
           icon: '✏️',
           duration: 4000
         })
       } else {
-        // Criar nova área
         const newArea = await areaService.create(formData)
         setAreas([...areas, newArea])
         
-        // Notificação com ícone customizado
         toast.success(`Área "${formData.name}" criada!`, {
           description: 'Nova área adicionada ao sistema.',
           icon: '✨',
@@ -151,7 +156,6 @@ export function AreaManagement() {
     } catch (error) {
       console.error('Erro ao salvar área:', error)
       
-      // Notificação de erro com ícone
       toast.error('Erro ao salvar área', {
         description: 'Verifique se todos os campos estão preenchidos corretamente.',
         icon: '⚠️',
@@ -189,10 +193,8 @@ export function AreaManagement() {
   const handleDeleteConfirm = async () => {
     try {
       await areaService.delete(deleteDialog.areaId)
-      const deletedArea = areas.find(area => area.id === deleteDialog.areaId)
       setAreas(areas.filter(area => area.id !== deleteDialog.areaId))
       
-      // Notificação simples sem ação de restaurar
       toast.success(`Área "${deleteDialog.areaName}" excluída com sucesso!`)
       
       // Recarregar dados para atualizar paginação
@@ -215,8 +217,6 @@ export function AreaManagement() {
     }
   }
 
-  // Removida: operação em lote e demo de posições
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -237,7 +237,6 @@ export function AreaManagement() {
             Cadastre e organize as diferentes áreas da sua empresa
           </p>
         </div>
-        
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -309,7 +308,12 @@ export function AreaManagement() {
         </Dialog>
       </div>
 
-      {/* Filtros */}
+      {listLoading && (
+        <div className="flex items-center text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Atualizando...
+        </div>
+      )}
+
       <Filters
         filters={filters}
         onFiltersChange={handleFiltersChange}
@@ -382,7 +386,6 @@ export function AreaManagement() {
             ))}
           </div>
 
-          {/* Paginação */}
           <Pagination
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
