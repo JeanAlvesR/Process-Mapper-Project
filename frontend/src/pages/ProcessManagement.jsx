@@ -794,7 +794,15 @@ export function ProcessManagement() {
                   <div className="text-sm text-muted-foreground py-8 text-center">Nenhum processo encontrado</div>
                 ) : (
                   parentProcesses.map(proc => (
-                    <div key={proc.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div 
+                      key={proc.id} 
+                      className="flex items-center justify-between p-2 border rounded-md hover:bg-gray-50 hover:border-gray-300 cursor-pointer transition-colors"
+                      onClick={() => {
+                        setFormData({ ...formData, parentId: proc.id })
+                        setSelectedParentName(proc.name)
+                        setIsParentSelectorOpen(false)
+                      }}
+                    >
                       <div className="min-w-0">
                         <div className="flex items-center gap-2">
                           {proc.type === 'systemic' ? (
@@ -808,16 +816,6 @@ export function ProcessManagement() {
                           <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{proc.description}</div>
                         )}
                       </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setFormData({ ...formData, parentId: proc.id })
-                          setSelectedParentName(proc.name)
-                          setIsParentSelectorOpen(false)
-                        }}
-                      >
-                        Selecionar
-                      </Button>
                     </div>
                   ))
                 )}
