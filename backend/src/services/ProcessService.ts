@@ -142,7 +142,6 @@ export class ProcessService implements IProcessService {
       throw new Error('Process not found');
     }
 
-    // Exclusão em cascata: repository já remove filhos recursivamente; e FK está com CASCADE
     const deleted = await this.processRepository.delete(id);
     if (!deleted) {
       throw new Error('Failed to delete process');

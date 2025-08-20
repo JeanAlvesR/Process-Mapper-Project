@@ -229,36 +229,79 @@ export function ProcessVisualization() {
               </CardDescription>
             )}
           </CardHeader>
+
           
-          {isExpanded && (
-            <CardContent className="pt-0">
-              {childLoading ? (
-                <div className="flex items-center py-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando subprocessos...
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+              {process.tools && (
+                <div className="flex items-start space-x-2">
+                  <Settings className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">Ferramentas</p>
+                    <p className="text-muted-foreground break-words">{process.tools}</p>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  {children.length === 0 ? (
-                    <div className="py-2 text-sm text-muted-foreground">Sem subprocessos</div>
-                  ) : (
-                    <div className="ml-4 border-l-2 border-muted pl-4">
-                      {children.map((child) => (
-                        <ProcessNode key={child.id} process={child} level={level + 1} />
-                      ))}
-                      <Pagination
-                        currentPage={childMeta.page}
-                        totalPages={childMeta.totalPages}
-                        totalItems={childMeta.totalItems}
-                        itemsPerPage={childMeta.limit}
-                        onPageChange={handleChildPageChange}
-                        className="mt-3"
-                      />
-                    </div>
-                  )}
-                </>
               )}
-            </CardContent>
-          )}
+              
+              {process.responsible && (
+                <div className="flex items-start space-x-2">
+                  <Users className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">Responsáveis</p>
+                    <p className="text-muted-foreground break-words">{process.responsible}</p>
+                  </div>
+                </div>
+              )}
+              
+              {process.documentation && (
+                <div className="flex items-start space-x-2">
+                  <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                  <div>
+                    <p className="font-medium">Documentação</p>
+                    <p className="text-muted-foreground break-words">{process.documentation}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-4 text-xs text-muted-foreground">
+              Criado em {new Date(process.createdAt).toLocaleDateString('pt-BR')}
+              {process.updatedAt && process.updatedAt !== process.createdAt && (
+                <span> • Atualizado em {new Date(process.updatedAt).toLocaleDateString('pt-BR')}</span>
+              )}
+            </div>
+
+            
+            {isExpanded && (
+              <div className="pt-3">
+                {childLoading ? (
+                  <div className="flex items-center py-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Carregando subprocessos...
+                  </div>
+                ) : (
+                  <>
+                    {children.length === 0 ? (
+                      <div className="py-2 text-sm text-muted-foreground">Sem subprocessos</div>
+                    ) : (
+                      <div className="ml-4 border-l-2 border-muted pl-4">
+                        {children.map((child) => (
+                          <ProcessNode key={child.id} process={child} level={level + 1} />
+                        ))}
+                        <Pagination
+                          currentPage={childMeta.page}
+                          totalPages={childMeta.totalPages}
+                          totalItems={childMeta.totalItems}
+                          itemsPerPage={childMeta.limit}
+                          onPageChange={handleChildPageChange}
+                          className="mt-3"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </CardContent>
         </Card>
       </div>
     )

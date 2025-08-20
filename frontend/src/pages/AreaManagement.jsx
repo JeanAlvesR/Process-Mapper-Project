@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Edit, Trash2, Building2, Loader2, Settings, Eye } from 'lucide-react'
+import { Plus, Edit, Trash2, Building2, Loader2 } from 'lucide-react'
 import { areaService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
@@ -15,7 +15,7 @@ import { Filters } from '../components/ui/filters'
 import { toast } from 'sonner'
 
 export function AreaManagement() {
-  const { showSuccess, showError, showInfo, showLoading, updateToast, showTopLeft, showBottomRight } = useNotifications()
+  const { showSuccess, showError, showInfo, showLoading, updateToast } = useNotifications()
   const [areas, setAreas] = useState([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [editingArea, setEditingArea] = useState(null)
@@ -215,57 +215,7 @@ export function AreaManagement() {
     }
   }
 
-  const handleBatchOperation = async () => {
-    const toastId = toast.loading('Iniciando operação em lote...', {
-      description: '0%'
-    })
-    
-    try {
-      // Simula uma operação em lote com progresso
-      for (let i = 0; i <= 100; i += 10) {
-        await new Promise(resolve => setTimeout(resolve, 200)) // Simula delay
-        toast.loading('Processando áreas...', {
-          id: toastId,
-          description: `${i}%`
-        })
-      }
-      
-      toast.success('Operação em lote concluída!', {
-        id: toastId,
-        description: `${areas.length} áreas processadas com sucesso.`,
-        icon: '✅'
-      })
-    } catch (error) {
-      toast.error('Erro na operação em lote', {
-        id: toastId,
-        description: 'Tente novamente mais tarde.',
-        icon: '❌'
-      })
-    }
-  }
-
-  const handlePositionDemo = () => {
-    // Demonstra notificações em diferentes posições
-    showTopLeft('Notificação no canto superior esquerdo', 'info')
-    
-    setTimeout(() => {
-      showBottomRight('Notificação no canto inferior direito', 'success')
-    }, 500)
-    
-    setTimeout(() => {
-      toast.warning('Notificação no canto superior direito', {
-        position: 'top-right',
-        icon: '⚠️'
-      })
-    }, 1000)
-    
-    setTimeout(() => {
-      toast.error('Notificação no canto inferior esquerdo', {
-        position: 'bottom-left',
-        icon: '❌'
-      })
-    }, 1500)
-  }
+  // Removida: operação em lote e demo de posições
 
   if (loading) {
     return (
@@ -288,34 +238,6 @@ export function AreaManagement() {
           </p>
         </div>
         
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => loadAreas(true)}
-            disabled={loading}
-          >
-            <Loader2 className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Recarregar
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handleBatchOperation}
-            disabled={loading || areas.length === 0}
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            Operação em Lote
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={handlePositionDemo}
-            disabled={loading}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            Demo Posições
-          </Button>
-        </div>
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
