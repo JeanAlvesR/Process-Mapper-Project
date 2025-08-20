@@ -123,6 +123,16 @@ export function AreaManagement() {
     })
   }
 
+  const handleClearAndSearch = (clearedFilters) => {
+    // Atualiza os filtros
+    setFilters(clearedFilters)
+    // Executa a busca com os filtros limpos
+    setAppliedFilters({
+      ...clearedFilters,
+      page: 1
+    })
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setSubmitting(true)
@@ -315,20 +325,20 @@ export function AreaManagement() {
         </Dialog>
       </div>
 
-      {listLoading && (
-        <div className="flex items-center text-sm text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin mr-2" /> Atualizando...
-        </div>
-      )}
-
       <Filters
         filters={filters}
         onFiltersChange={handleFiltersChange}
         onSearch={handleSearch}
+        onClearAndSearch={handleClearAndSearch}
         searchPlaceholder="Buscar áreas por nome ou descrição..."
       />
 
-      {areas.length === 0 ? (
+      {listLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin" />
+          <span className="ml-2">Carregando áreas...</span>
+        </div>
+      ) : areas.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />

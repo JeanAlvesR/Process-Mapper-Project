@@ -7,6 +7,7 @@ export function Filters({
   filters, 
   onFiltersChange, 
   onSearch, 
+  onClearAndSearch,  // Nova prop para limpar e buscar
   searchPlaceholder = "Buscar...",
   className = ""
 }) {
@@ -24,12 +25,25 @@ export function Filters({
         clearedFilters[key] = ''
       }
     })
-    onFiltersChange(clearedFilters)
+    
+    if (onClearAndSearch) {
+      // Se a função específica estiver disponível, usa ela
+      onClearAndSearch(clearedFilters)
+    } else {
+      // Fallback para o comportamento anterior
+      onFiltersChange(clearedFilters)
+      setTimeout(() => onSearch(), 10)
+    }
   }
 
-  const hasActiveFilters = Object.entries(filters).some(([key, value]) => 
-    value !== '' && value !== undefined && value !== null && key !== 'page'
-  )
+  const hasActiveFilters = Object.entries(filters).some(([key, value]) => {
+    if (key === 'page') return false
+    if (key === 'search') return value !== '' && value !== undefined && value !== null
+    if (key === 'sortBy') return value !== 'createdAt'
+    if (key === 'sortOrder') return value !== 'DESC'
+    if (key === 'limit') return value !== '10'
+    return value !== '' && value !== undefined && value !== null
+  })
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -52,12 +66,15 @@ export function Filters({
         <Button onClick={onSearch} size="sm">
           Buscar
         </Button>
-        {hasActiveFilters && (
-          <Button onClick={clearFilters} variant="outline" size="sm">
-            <X className="h-4 w-4 mr-1" />
-            Limpar
-          </Button>
-        )}
+        <Button 
+          onClick={clearFilters} 
+          variant="outline" 
+          size="sm"
+          disabled={!hasActiveFilters}
+        >
+          <X className="h-4 w-4 mr-1" />
+          Limpar
+        </Button>
       </div>
 
       {/* Filtros específicos */}

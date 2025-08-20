@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Loader2 } from 'lucide-react'
+import { Plus, Edit, Trash2, GitBranch, Building2, Users, FileText, Settings, Loader2, X } from 'lucide-react'
 import { areaService, processService } from '../services/api'
 import { useNotifications } from '../hooks/useNotifications'
 import { ConfirmDialog } from '../components/ui/confirm-dialog'
@@ -154,11 +154,28 @@ export function ProcessManagement() {
 
   const handleAreaFilterChange = (areaId) => {
     setSelectedArea(areaId)
+    const newAreaId = areaId === 'all' ? '' : areaId
     setFilters(prev => ({
       ...prev,
-      areaId: areaId === 'all' ? '' : areaId,
+      areaId: newAreaId,
       page: 1
     }))
+    // Aplica o filtro automaticamente
+    setAppliedFilters(prev => ({
+      ...prev,
+      areaId: newAreaId,
+      page: 1
+    }))
+  }
+
+  const handleClearAndSearch = (clearedFilters) => {
+    // Atualiza os filtros
+    setFilters(clearedFilters)
+    // Executa a busca com os filtros limpos
+    setAppliedFilters({
+      ...clearedFilters,
+      page: 1
+    })
   }
 
   const handleSubmit = async (e) => {
@@ -555,6 +572,7 @@ export function ProcessManagement() {
             filters={filters}
             onFiltersChange={handleFiltersChange}
             onSearch={handleSearch}
+            onClearAndSearch={handleClearAndSearch}
             searchPlaceholder="Buscar processos por nome, descrição, ferramentas ou responsáveis..."
           />
 
