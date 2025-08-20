@@ -1,0 +1,15 @@
+graph TD
+    A[Frontend React] -->|Requisições HTTP| B(Backend Express.js)
+    B -->|Usa| C{repositorie.ts}
+    B -->|Gerencia Rotas| D[Rotas de Áreas]
+    B -->|Gerencia Rotas| E[Rotas de Processos]
+    C -->|Armazena Dados| F[Dados em Memória]
+    D -->|Manipula Dados| C
+    E -->|Manipula Dados| C
+    subgraph Backend
+        B
+        C
+        D
+        E
+    end
+

@@ -1,0 +1,67 @@
+# ===================================================================
+# Arquivo .gitignore unificado para Backend (Node.js) e Frontend (React)
+# ===================================================================
+
+# Dependencies
+# Ignora as pastas de dependências em qualquer lugar do projeto (raiz, backend/, frontend/)
+node_modules/
+
+# Build output
+# Ignora as pastas de build/compilação em qualquer lugar do projeto
+dist/
+build/
+.next/
+out/
+
+# Transpiled TypeScript files
+*.tsbuildinfo
+
+# Logs
+# Ignora arquivos e pastas de log
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Environment variables
+# Ignora arquivos de variáveis de ambiente, exceto os de exemplo
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.*.local
+
+# IDEs and editors
+# Ignora arquivos e pastas de configuração de IDEs
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Operating System files
+# Ignora arquivos gerados pelo sistema operacional
+.DS_Store
+Thumbs.db
+
+# Test reports and coverage
+# Ignora relatórios de testes e de cobertura de código
+coverage/
+.nyc_output/
+mochawesome-report/
+junit.xml
+
+# Optional files
+# Ignora arquivos de cache e outros arquivos opcionais
+.npm/
+.eslintcache
