@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
-import { ProcessService } from '../services/ProcessService';
 import { CreateProcessDto, UpdateProcessDto } from '../dtos/ProcessDto';
+import { IProcessService } from '../interfaces/IProcessService';
+import { container } from '../container/DependencyContainer';
 
 export class ProcessController {
-  private processService: ProcessService;
+  private processService: IProcessService;
 
   constructor() {
-    this.processService = new ProcessService();
+    this.processService = container.get<IProcessService>('IProcessService');
   }
 
   async createProcess(req: Request, res: Response): Promise<void> {

@@ -1,8 +1,9 @@
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Process } from '../entities/Process';
+import { IProcessRepository } from '../interfaces/IProcessRepository';
 
-export class ProcessRepository {
+export class ProcessRepository implements IProcessRepository {
   private repository: Repository<Process>;
 
   constructor() {

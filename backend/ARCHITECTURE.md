@@ -7,9 +7,11 @@ src/
 ├── config/          # Configurações (database, etc.)
 ├── controllers/     # Controllers - Responsáveis por receber requests e retornar responses
 ├── services/        # Services - Lógica de negócio
-├── repositories/    # Repositories - Acesso a dados
+├── repositories/    # Repositories - Acesso a dados (padrão DAO)
 ├── entities/        # Entidades do TypeORM
 ├── dtos/           # Data Transfer Objects - Interfaces para request/response
+├── interfaces/     # Interfaces para services e repositories
+├── container/      # Container de injeção de dependências
 ├── routes/         # Definição das rotas
 ├── db/             # Configuração do banco de dados
 └── seed/           # Scripts de seed
@@ -35,13 +37,15 @@ src/
   - Conversão de entidades para DTOs
   - Não conhece HTTP ou Express
 
-### 3. Repositories (`/repositories`)
-- **Responsabilidade**: Acesso a dados
+### 3. Repositories (`/repositories`) - Padrão DAO
+- **Responsabilidade**: Acesso a dados (Data Access Object)
 - **Características**:
+  - Implementam interfaces específicas
   - Operações CRUD básicas
   - Queries específicas
   - Abstração do banco de dados
   - Retornam entidades do TypeORM
+  - Seguem o padrão DAO para isolamento de dados
 
 ### 4. DTOs (`/dtos`)
 - **Responsabilidade**: Definição de interfaces para transferência de dados
@@ -50,6 +54,21 @@ src/
   - **Update DTOs**: Para atualização de recursos
   - **Response DTOs**: Para retorno de dados
   - **Detail DTOs**: Para retornos com informações completas
+
+### 5. Interfaces (`/interfaces`)
+- **Responsabilidade**: Contratos para services e repositories
+- **Tipos**:
+  - **IService**: Interfaces para services
+  - **IRepository**: Interfaces para repositories (padrão DAO)
+  - **Facilitam testes e injeção de dependência**
+
+### 6. Container (`/container`)
+- **Responsabilidade**: Injeção de dependências
+- **Características**:
+  - Singleton pattern
+  - Registro de services e repositories
+  - Facilita testes com mocks
+  - Reduz acoplamento entre componentes
 
 ## Fluxo de Dados
 
@@ -85,6 +104,7 @@ Response ← Controller ← Service ← Repository ← Database
 - Cada camada pode ser testada independentemente
 - Mocks mais fáceis de implementar
 - Testes unitários mais focados
+- Interfaces facilitam criação de mocks
 
 ### 4. Manutenibilidade
 - Mudanças em uma camada não afetam outras
@@ -95,6 +115,16 @@ Response ← Controller ← Service ← Repository ← Database
 - Fácil adicionar novas funcionalidades
 - Estrutura preparada para crescimento
 - Padrões consistentes
+
+### 6. Injeção de Dependência
+- Reduz acoplamento entre componentes
+- Facilita testes com mocks
+- Container centraliza gerenciamento de dependências
+
+### 7. Padrão DAO
+- Isolamento da camada de dados
+- Facilita mudança de banco de dados
+- Abstração clara das operações de persistência
 
 ## DTOs Implementados
 
@@ -126,6 +156,42 @@ Cada camada tem responsabilidades específicas para tratamento de erros:
 - **Services**: Erros de negócio (validações, regras de negócio)
 - **Repositories**: Erros de banco de dados
 
+## Interfaces Implementadas
+
+### Service Interfaces
+- `IAreaService`: Contrato para operações de área
+- `IProcessService`: Contrato para operações de processo
+
+### Repository Interfaces (DAO)
+- `IAreaRepository`: Contrato para acesso a dados de área
+- `IProcessRepository`: Contrato para acesso a dados de processo
+
+### Mock Repositories
+- `MockAreaRepository`: Implementação mock para testes
+- `MockProcessRepository`: Implementação mock para testes
+
+## Container de Dependências
+
+O projeto utiliza um container de dependências simples que:
+- Registra automaticamente services e repositories
+- Permite injeção de dependência
+- Facilita testes com mocks
+- Reduz acoplamento entre componentes
+
+## Exemplos de Uso
+
+### Teste com Mocks
+```typescript
+const mockAreaRepository = new MockAreaRepository();
+const mockProcessRepository = new MockProcessRepository();
+const areaService = new AreaService(mockAreaRepository, mockProcessRepository);
+```
+
+### Uso do Container
+```typescript
+const areaService = container.get<IAreaService>('IAreaService');
+```
+
 ## Próximos Passos
 
 1. Implementar validação de entrada com bibliotecas como `class-validator`
@@ -133,3 +199,5 @@ Cada camada tem responsabilidades específicas para tratamento de erros:
 3. Implementar logging estruturado
 4. Adicionar testes unitários para cada camada
 5. Implementar cache para consultas frequentes
+6. Configurar framework de testes (Jest/Vitest)
+7. Implementar mais mocks para testes de integração

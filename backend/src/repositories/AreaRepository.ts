@@ -1,8 +1,9 @@
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../config/database';
 import { Area } from '../entities/Area';
+import { IAreaRepository } from '../interfaces/IAreaRepository';
 
-export class AreaRepository {
+export class AreaRepository implements IAreaRepository {
   private repository: Repository<Area>;
 
   constructor() {

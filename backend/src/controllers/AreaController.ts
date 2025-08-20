@@ -1,12 +1,13 @@
 import { Request, Response } from 'express';
-import { AreaService } from '../services/AreaService';
 import { CreateAreaDto, UpdateAreaDto } from '../dtos/AreaDto';
+import { IAreaService } from '../interfaces/IAreaService';
+import { container } from '../container/DependencyContainer';
 
 export class AreaController {
-  private areaService: AreaService;
+  private areaService: IAreaService;
 
   constructor() {
-    this.areaService = new AreaService();
+    this.areaService = container.get<IAreaService>('IAreaService');
   }
 
   async createArea(req: Request, res: Response): Promise<void> {

@@ -8,14 +8,20 @@ import {
   AreaWithProcessesDto 
 } from '../dtos/AreaDto';
 import { ProcessResponseDto } from '../dtos/ProcessDto';
+import { IAreaService } from '../interfaces/IAreaService';
+import { IAreaRepository } from '../interfaces/IAreaRepository';
+import { IProcessRepository } from '../interfaces/IProcessRepository';
 
-export class AreaService {
-  private areaRepository: AreaRepository;
-  private processRepository: ProcessRepository;
+export class AreaService implements IAreaService {
+  private areaRepository: IAreaRepository;
+  private processRepository: IProcessRepository;
 
-  constructor() {
-    this.areaRepository = new AreaRepository();
-    this.processRepository = new ProcessRepository();
+  constructor(
+    areaRepository?: IAreaRepository,
+    processRepository?: IProcessRepository
+  ) {
+    this.areaRepository = areaRepository || new AreaRepository();
+    this.processRepository = processRepository || new ProcessRepository();
   }
 
   private mapToAreaResponseDto(area: Area, processCount?: number): AreaResponseDto {

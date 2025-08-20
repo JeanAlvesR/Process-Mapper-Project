@@ -7,14 +7,20 @@ import {
   ProcessResponseDto, 
   ProcessWithDetailsDto 
 } from '../dtos/ProcessDto';
+import { IProcessService } from '../interfaces/IProcessService';
+import { IProcessRepository } from '../interfaces/IProcessRepository';
+import { IAreaRepository } from '../interfaces/IAreaRepository';
 
-export class ProcessService {
-  private processRepository: ProcessRepository;
-  private areaRepository: AreaRepository;
+export class ProcessService implements IProcessService {
+  private processRepository: IProcessRepository;
+  private areaRepository: IAreaRepository;
 
-  constructor() {
-    this.processRepository = new ProcessRepository();
-    this.areaRepository = new AreaRepository();
+  constructor(
+    processRepository?: IProcessRepository,
+    areaRepository?: IAreaRepository
+  ) {
+    this.processRepository = processRepository || new ProcessRepository();
+    this.areaRepository = areaRepository || new AreaRepository();
   }
 
   private mapToProcessResponseDto(process: Process, childrenCount?: number): ProcessResponseDto {
