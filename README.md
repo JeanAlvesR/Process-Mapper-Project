@@ -95,15 +95,15 @@ projeto/
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/process-mapper.git
+git clone https://github.com/jeanalvesr/process-mapper.git
 cd process-mapper
 
 # Execute com Docker Compose
 docker-compose up -d
 
 # Acesse a aplicação
-# Frontend: http://localhost:3000
-# Backend: http://localhost:3001
+# Frontend: http://localhost:5173
+# Backend: http://localhost:3000
 # Database: localhost:5432
 ```
 
@@ -226,29 +226,5 @@ docker-compose up -d
 - **ESLint**: Linting consistente
 - **Prettier**: Formatação automática
 - **Conventional Commits**: Padrão de commits
-
-## 📄 Licença
-
-Este projeto está licenciado sob a licença **ISC** - veja o arquivo [LICENSE](LICENSE) para detalhes.
-
-## 👥 Autores
-
-- **Manus AI** - Desenvolvimento inicial
-- **Contribuidores** - Melhorias e correções
-
-## 🙏 Agradecimentos
-
-- **Radix UI** por componentes acessíveis
-- **TailwindCSS** pelo sistema de design
-- **Vite** pela ferramenta de build
-- **TypeORM** pelo ORM robusto
-
-## 📞 Suporte
-
-- **Issues**: [GitHub Issues](https://github.com/seu-usuario/process-mapper/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/seu-usuario/process-mapper/discussions)
-- **Wiki**: [Documentação Wiki](https://github.com/seu-usuario/process-mapper/wiki)
-
----
 
 ⭐ **Se este projeto te ajudou, considere dar uma estrela!** ⭐
