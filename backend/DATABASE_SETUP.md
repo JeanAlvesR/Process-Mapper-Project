@@ -39,7 +39,7 @@ sudo -u postgres psql
 3. **Criar o banco de dados e usuário:**
 ```sql
 CREATE DATABASE process_mapper;
-CREATE USER postgres WITH PASSWORD 'postgres';
+CREATE USER postgres WITH PASSWORD 'postgres'; || ALTER USER postgres WITH PASSWORD 'postgres';
 GRANT ALL PRIVILEGES ON DATABASE process_mapper TO postgres;
 \q
 ```
@@ -63,19 +63,19 @@ NODE_ENV=development
 ## Instalação das Dependências
 
 ```bash
-pnpm install
+pnpm install || npm install
 ```
 
 ## Executando o Projeto
 
 1. **Desenvolvimento:**
 ```bash
-pnpm dev
+pnpm run dev || npm run dev
 ```
 
 2. **Popular o banco com dados iniciais:**
 ```bash
-pnpm seed
+pnpm run seed || npm run seed
 ```
 
 3. **Build para produção:**
