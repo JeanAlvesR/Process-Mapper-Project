@@ -104,6 +104,7 @@ sudo snap install docker
 sudo apt install docker-compose
 
 # Execute com Docker Compose
+sudo systemctl stop postgresql
 sudo docker-compose up -d
 
 # Acesse a aplicação
